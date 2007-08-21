@@ -25,13 +25,13 @@
 int main()
 {
     Sphinx::ConnectionConfig_t config;
-    config.host = "tatranka";
+    config.host = "localhost";
     config.port = 3313;
     config.keepAlive = true;
     config.connectTimeout = 2000;
     config.readTimeout = 2000;
     config.writeTimeout = 2000;
-       
+
 
     Sphinx::Client_t connection(config);
     Sphinx::Response_t result;
