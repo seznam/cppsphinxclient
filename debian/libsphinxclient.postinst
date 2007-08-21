@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# $Id$
+#
+
+set -e
+
+if [ "$1" = "configure" ]; then
+   ldconfig /usr/lib
+fi

@@ -1,0 +1,10 @@
+Package: @PACKAGE@
+Version: @VERSION@
+Architecture: @ARCHITECTURE@
+Depends: @EXTRA_DEPEND@
+Maintainer: @MAINTAINER@
+Installed-Size: @SIZE@
+Conflicts: @CONFLICTS@
+Description: Sphinx Client: C++ client library for Sphinx search daemon.
+ C++ client library for Sphinx search daemon. 
+ .

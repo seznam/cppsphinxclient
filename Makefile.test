@@ -1,0 +1,33 @@
+#
+# Copyright (C) 2006  Seznam.cz, a.s.
+#
+# $Id: Makefile.test 78 2007-01-08 17:04:36Z jan.kirschner $
+#
+# DESCRIPTION
+# A makefile for sphinxtest.
+#
+# AUTHORS
+# Jan Kirschner <jan.kirschner@firma.seznam.cz>
+#
+# HISTORY
+# 2006-12-14  (kirschner)
+#             Created.
+#
+
+CXX=g++
+CXXFLAGS=-Wall -pedantic -I"./include"
+LINKFLAGS=-lsphinxclient
+
+COMPILE=$(CXX) -c $(CXXFLAGS)
+LINK=$(CXX) $(LINKFLAGS)
+
+all: sphinxtest
+
+sphinxtest: sphinxtest.o
+	$(LINK) -o sphinxtest sphinxtest.o
+
+sphinxtest.o: sphinxtest.cc
+	$(COMPILE) -o sphinxtest.o sphinxtest.cc
+
+clean:
+	rm -f *.o sphinxtest

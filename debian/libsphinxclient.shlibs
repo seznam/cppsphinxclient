@@ -1,0 +1,1 @@
+libsphinxclient @SO_VERSION@ @PACKAGE@ (>= @VERSION@), @SH_DEPEND@
