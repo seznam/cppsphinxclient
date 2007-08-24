@@ -69,35 +69,35 @@ int main()
         return 1;
     }
 
-    // nastaveni hledani
+    // search settings
     settings.msgOffset = 0;
     settings.msgLimit = 20;
     settings.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_7_1;
     settings.matchMode = Sphinx::SPH_MATCH_EXTENDED;
     settings.maxMatches = 1000;
 
-    // priprava vyctoveho filtru
+    // preparation of enumeration filter
     Sphinx::IntArray_t ids;
     ids.push_back(847);
     ids.push_back(831);
     ids.push_back(875);
     ids.push_back(840);
 
-    // inicializace range a vyctoveho filtru
-    settings.addRangeFilter("vat_price", 1, 600, true);
-    settings.addEnumFilter("shop_id", ids, true);
+    // initialization of range and enum filter
+    settings.addRangeFilter("attr1", 1, 600, true);
+    settings.addEnumFilter("attr2", ids, true);
 
-    // nastave razeni
+    // sort settings
     settings.sortMode = Sphinx::SPH_SORT_EXTENDED;
     settings.sortBy = "vat_price asc";
 
-    // nastaveni groupovani
+    // group settings
     settings.groupFunction = Sphinx::SPH_GROUPBY_ATTR;
-    settings.groupBy = "shop_id";
-    settings.groupSort = "vat_price asc";
+    settings.groupBy = "attr1";
+    settings.groupSort = "attr2 asc";
 
     try{
-        connection.query("@verbatim_title a | @verbatim_description a", settings, result);
+        connection.query("@field1 hello | @field2 world", settings, result);
         printf("query success.\n");
     }
     catch(Sphinx::Error_t e)
