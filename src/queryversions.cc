@@ -445,6 +445,7 @@ void parseResponse_v0_9_6(Sphinx::Query_t &data, Sphinx::Response_t &response)
 {
     uint32_t matchCount;
     uint32_t wordCount;
+    uint32_t docId;
 
     response.clear();
 
@@ -456,7 +457,8 @@ void parseResponse_v0_9_6(Sphinx::Query_t &data, Sphinx::Response_t &response)
     for (unsigned int i=0 ; i<matchCount ; i++)
     {
         Sphinx::ResponseEntry_t entry;
-        data >> entry.documentId;
+        data >> docId;
+        entry.documentId = docId;
         data >> entry.groupId;
         data >> entry.timestamp;
         data >> entry.weight;
@@ -530,7 +532,9 @@ void parseResponse_v0_9_7(Sphinx::Query_t &data, Sphinx::Response_t &response)
     for (unsigned int i=0 ; i<matchCount ; i++)
     {
         Sphinx::ResponseEntry_t entry;
-        data >> entry.documentId;
+        uint32_t docId;
+        data >> docId;
+        entry.documentId = docId;
         data >> entry.weight;
         entry.groupId = entry.timestamp = 0;
 
@@ -641,10 +645,11 @@ void parseResponse_v0_9_8(Sphinx::Query_t &data, Sphinx::Response_t &response)
     {
         Sphinx::ResponseEntry_t entry;
         if(response.use64bitId)
-            data >> entry.documentId64;
-        else {
             data >> entry.documentId;
-            entry.documentId64 = entry.documentId;
+        else {
+            uint32_t docId;
+            data >> docId;
+            entry.documentId = docId;
         }//else
 
         data >> entry.weight;

@@ -62,8 +62,6 @@ namespace Sphinx
 class Query_t;
 class Client_t;
 
-struct PrivateConnectionConfig_t;
-
 //------------------------------------------------------------------------------
 // --------------------- configuration -----------------------------------------
 
@@ -155,16 +153,6 @@ enum GroupFunction_t { SPH_GROUPBY_DAY = 0,
 
 class ConnectionConfig_t
 {
-/*private:
-    // private copy constructor and operator of assignment prevents objects
-    // to be copied
-    ConnectionConfig_t(const ConnectionConfig_t &) {}
-    ConnectionConfig_t &operator = (const ConnectionConfig_t &){ return *this; }
-    
-protected:
-    // all data are stored elsewhere to easily achieve binary compatibility
-    PrivateConnectionConfig_t *cfgData;*/
-
 public:
     std::string host;
     unsigned short port;
@@ -180,8 +168,6 @@ public:
                        int32_t connectTimeout = 5000,
                        int32_t readTimeout = 3000,
                        int32_t writeTimeout = 3000);
-
-    //~ConnectionConfig_t();
 };
 
 
@@ -315,11 +301,7 @@ struct SearchConfig_t
 
 struct ResponseEntry_t
 {
-    //! @brief database ID of the document (set only for disabled
-    //         64bit ID in sphinx searchd)
-    uint32_t documentId;
-    //! @brief 64bit database ID of the document (set allways)
-    uint64_t documentId64;
+    uint64_t documentId;   //!< @brief database ID of the document
     uint32_t groupId;      //!< @brief group ID (only v. 101)
     uint32_t timestamp;    //!< @brief creation/modification time (v. 101)
     uint32_t weight;       //!< @brief matching weight (relevance)
@@ -327,7 +309,7 @@ struct ResponseEntry_t
     std::map<std::string, Value_t> attribute;
 
     ResponseEntry_t()
-        : documentId(0), documentId64(0), groupId(0), timestamp(0), weight(0) {}
+        : documentId(0), groupId(0), timestamp(0), weight(0) {}
 };//struct
 
 /** @brief Searched word statistics returned by searchd

@@ -87,7 +87,7 @@ void printResult(const Sphinx::Response_t &result)
          it != result.entry.end(); it++) {
 
         i++;
-        printf("%d) id: %d (%ld) ", i, it->documentId, it->documentId64);
+        printf("%d) id: %ld ", i, it->documentId);
         for (std::map<std::string, Sphinx::Value_t>::const_iterator j =
                             it->attribute.begin();
                 j != it->attribute.end() ; j++)
