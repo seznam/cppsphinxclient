@@ -64,10 +64,14 @@ struct Query_t
 
     Query_t &operator << (unsigned short);
     Query_t &operator << (uint32_t);
+    Query_t &operator << (uint64_t);
+    Query_t &operator << (float);
     Query_t &operator << (const std::string &);
     Query_t &operator << (const Query_t &);
 
     Query_t &operator >> (uint32_t &);
+    Query_t &operator >> (uint64_t &);
+    Query_t &operator >> (float &);
     Query_t &operator >> (unsigned short &);
     Query_t &operator >> (std::string &);
 

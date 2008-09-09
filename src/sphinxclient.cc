@@ -40,6 +40,7 @@
 #include <sphinxclient/sphinxclient.h>
 #include <sphinxclient/sphinxclientquery.h>
 #include <sphinxclient/error.h>
+#include <sphinxclient/globals.h>
 
 #include <sstream>
 
@@ -50,6 +51,8 @@
 #include <ctype.h>
 #include <netdb.h>
 
+#include <stdarg.h>
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -57,19 +60,65 @@
 
 //------------------------------------------------------------------------------
 
-enum Command_t { SEARCHD_COMMAND_SEARCH = 0,
-                 SEARCHD_COMMAND_EXCERPT = 1,
-                 SEARCHD_COMMAND_UPDATE = 2 };
-
-enum ExcerptCommandVersion_t { VER_COMMAND_EXCERPT = 0x100 };
-enum UpdateCommandVersion_t { VER_COMMAND_UPDATE = 0x100 };
-
-enum Status_t { SEARCHD_OK = 0,
-                SEARCHD_ERROR = 1,
-                SEARCHD_RETRY = 2,
-                SEARCHD_WARNING = 3 };
 
 //------------------------------------------------------------------------------
+// query version handlers declarations
+//------------------------------------------------------------------------------
+
+void buildQueryVersion(const std::string &, const Sphinx::SearchConfig_t &,
+                       Sphinx::Query_t &);
+
+void parseResponseVersion(Sphinx::Query_t &, Sphinx::SearchCommandVersion_t,
+                          Sphinx::Response_t &);
+
+void buildHeader(Sphinx::Command_t, unsigned short, int, Sphinx::Query_t &,
+                 int queryCount=1);
+
+void buildUpdateRequest_v0_9_8(Sphinx::Query_t &data,
+                               const std::string &index,
+                               const Sphinx::AttributeUpdates_t &at);
+
+void parseUpdateResponse_v0_9_8(Sphinx::Query_t &data, uint32_t &updateCount);
+
+//------------------------------------------------------------------------------
+// Connection configuration
+//------------------------------------------------------------------------------
+/*
+namespace Sphinx {
+
+struct PrivateConnectionConfig_t
+{
+    std::string host;
+    unsigned short port;
+
+    bool keepAlive;
+    int32_t connectTimeout;
+    int32_t readTimeout;
+    int32_t writeTimeout;
+
+    PrivateConnectionConfig_t(const std::string &host, unsigned short port,
+                              bool kAlive, int32_t cTm, int32_t rTm,
+                              int32_t wTm)
+        : host(host), port(port), keepAlive(kAlive), connectTimeout(cTm),
+          readTimeout(rTm), writeTimeout(wTm) {}
+};//struct
+
+}//namespace
+
+
+Sphinx::ConnectionConfig_t::ConnectionConfig_t(const std::string &host,
+        unsigned short port, bool keepAlive, int32_t connectTimeout,
+        int32_t readTimeout, int32_t writeTimeout)
+    : cfgData(new Sphinx::PrivateConnectionConfig_t(
+                      host, port, keepAlive, connectTimeout, readTimeout,
+                      writeTimeout))
+{}
+
+Sphinx::ConnectionConfig_t::~ConnectionConfig_t()
+{
+    delete cfgData;
+}//konec fce
+*/
 
 Sphinx::ConnectionConfig_t::ConnectionConfig_t(const std::string &host,
         unsigned short port, bool keepAlive, int32_t connectTimeout,
@@ -80,12 +129,16 @@ Sphinx::ConnectionConfig_t::ConnectionConfig_t(const std::string &host,
                                                writeTimeout(writeTimeout)
 {}
 
+//------------------------------------------------------------------------------
+
 Sphinx::SearchConfig_t::SearchConfig_t(SearchCommandVersion_t cmdVer):
-    msgOffset(0), msgLimit(20), minId(0), maxId(0xFFFFFFFF), minTimestamp(0),
+    msgOffset(0), msgLimit(20), minId(0), maxId(0), minTimestamp(0),
     maxTimestamp(0xFFFFFFFF), minGroupId(0), maxGroupId(0xFFFFFFFF),
     matchMode(SPH_MATCH_ALL), sortMode(SPH_SORT_RELEVANCE),
+    rankingMode(SPH_RANK_PROXIMITY_BM25),
     sortBy(""), groupBy(""), groupFunction(SPH_GROUPBY_DAY), maxMatches(1000),
-    groupSort("@group desc"), commandVersion(cmdVer), indexes("*")
+    groupSort("@group desc"), commandVersion(cmdVer), indexes("*"),
+    searchCutOff(0), distRetryCount(0), distRetryDelay(0), maxQueryTime(0)
 {}
 
 void Sphinx::SearchConfig_t::addRangeFilter(std::string attrName, uint32_t minValue,
@@ -102,6 +155,13 @@ void Sphinx::SearchConfig_t::addEnumFilter(std::string attrName,
 {
     this->filters.push_back(new EnumFilter_t(attrName, values,
                                          excludeFlag));
+}
+
+void Sphinx::SearchConfig_t::addFloatRangeFilter(std::string attrName,
+    float minValue, float maxValue, bool excludeFlag)
+{
+    this->filters.push_back(new FloatRangeFilter_t(attrName, minValue,
+                                                   maxValue, excludeFlag));
 }
 
 
@@ -142,7 +202,7 @@ void Sphinx::Response_t::clear()
 //------------------------------------------------------------------------------
 
 Sphinx::Client_t::Client_t(const ConnectionConfig_t &settings)
-                          :connection(settings), socket_d(-1)
+    : connection(settings), socket_d(-1)
 {}//konstruktor
 
 Sphinx::Client_t::~Client_t()
@@ -470,404 +530,62 @@ void Sphinx::Client_t::sendData(const Query_t &buff)
     while (bytesSent < buff.dataEndPtr);
 }//konec fce
 
-void buildQuery_v0_9_6(const std::string &query,
-                       const Sphinx::SearchConfig_t &attrs,
-                       Sphinx::Query_t &data)
+
+//-------------------------------------------------------------------------
+
+
+Sphinx::MultiQuery_t::MultiQuery_t(SearchCommandVersion_t cv)
+    : commandVersion(cv), queryCount(0)
+{}//konec fce
+
+void Sphinx::MultiQuery_t::initQuery(SearchCommandVersion_t cv)
 {
-    /*
-    int32_t offset, limit, matchMode, sortMode
-    int32_t number_of_groups {int32_t group_id}
-    string query
-    int32_t number_of_weights {int32_t weight}
-    string indexes
-    */
-
-    //limits, modes
-    data << (uint32_t) attrs.msgOffset << (uint32_t) attrs.msgLimit;
-    data << (uint32_t) attrs.matchMode;
-    data << (uint32_t) attrs.sortMode;
-
-    //groups
-    data << (uint32_t) attrs.groups.size();
-    for (Sphinx::IntArray_t::const_iterator group = attrs.groups.begin() ;
-         group != attrs.groups.end() ; group++)
-    {
-        data << (uint32_t) (*group);
-    }//for
-
-    //query
-    data << query;
-
-    //weights
-    data << (uint32_t) attrs.weights.size();
-    for (Sphinx::IntArray_t::const_iterator weight = attrs.weights.begin() ;
-         weight != attrs.weights.end() ; weight++)
-    {
-        data << (uint32_t) (*weight);
-    }//for
-
-    //indexes
-    data << attrs.indexes;
-
-    //ranges
-    data << attrs.minId << attrs.maxId;
-    data << attrs.minTimestamp << attrs.maxTimestamp;
-    data << attrs.minGroupId << attrs.maxGroupId;
+    queryCount = 0;
+    commandVersion = cv;
+    queries.clear();
 }//konec fce
 
 
-void buildQuery_v0_9_7(const std::string &query,
-                       const Sphinx::SearchConfig_t &attrs,
-                       Sphinx::Query_t &data)
+void Sphinx::MultiQuery_t::addQuery(const std::string& query,
+                                    const SearchConfig_t &queryAttr)
 {
-    /*
-    int32_t offset, limit, matchMode, sortMode
-    string sort_by
-    string query
-    int32_t number_of_weights {int32_t weight}
-    string indexes
-    int32_t min_id, int32_t max_id
-    int32_t (minmax_count+filers_count)
-        {string attr, int32_t 0, int32_t min, int32_t max}
-        {string attr, int32_t value_count, {int32_t value}}
-    int32_t group_func, string group_by
-    int32_t maxMatches
-    */
+    // query attr command version must match query command version
+    if(commandVersion != queryAttr.commandVersion)
+        throw ClientUsageError_t("multiQuery version does not match "
+                                 "added query version.");
 
-    //limits, modes
-    data << (uint32_t) attrs.msgOffset << (uint32_t) attrs.msgLimit;
-    data << (uint32_t) attrs.matchMode;
-    data << (uint32_t) attrs.sortMode;
+    // increase query count
+    queryCount++;
 
-    //sort_by
-    data << attrs.sortBy;
-
-    //query
-    data << query;
-
-    //weights
-    data << (uint32_t) attrs.weights.size();
-    for (Sphinx::IntArray_t::const_iterator weight = attrs.weights.begin() ;
-         weight != attrs.weights.end() ; weight++)
-    {
-        data << (uint32_t) (*weight);
-    }//for
-
-    //indexes
-    data << attrs.indexes;
-
-    //id range
-    data << attrs.minId << attrs.maxId;
-
-    //filters
-    data << (uint32_t)(attrs.minValue.size() + attrs.filter.size());
-
-    std::map<std::string, uint32_t>::const_iterator min, max;
-    for (min = attrs.minValue.begin(), max = attrs.maxValue.begin() ;
-         min != attrs.minValue.end() ; min++, max++)
-    {
-        //string key
-        data << min->first;
-        //ranges
-        data << (uint32_t) 0 << (uint32_t) min->second << (uint32_t) max->second;
-    }//for
-
-    for (std::map<std::string, Sphinx::IntArray_t >::const_iterator filt
-         = attrs.filter.begin() ; filt != attrs.filter.end() ; filt++)
-    {
-        //string key, uint32_t value count
-        data << filt->first;
-        data << (uint32_t) filt->second.size();
-        //values
-        for (Sphinx::IntArray_t::const_iterator val = filt->second.begin() ;
-             val != filt->second.end() ; val++)
-        {
-            data << (uint32_t)(*val);
-        }//for
-    }//for
-
-    //group by
-    data << (uint32_t) attrs.groupFunction;
-    data << attrs.groupBy;
-
-    //max matches
-    data << (uint32_t) attrs.maxMatches;
+    // append to multiquery
+    queries.convertEndian = true;
+    buildQueryVersion(query, queryAttr, queries);
 }//konec fce
 
+int Sphinx::MultiQuery_t::getQueryCount() const { return queryCount; }
 
-void buildQuery_v0_9_7_1(const std::string &query,
-                       const Sphinx::SearchConfig_t &attrs,
-                       Sphinx::Query_t &data)
-{
-    /*
-    int32_t offset, limit, matchMode, sortMode
-    string sort_by
-    string query
-    int32_t number_of_weights {int32_t weight}
-    string indexes
-    int32_t min_id, int32_t max_id 
-    int32_t (range_filter_count+enum_filters_count+0.9.7.1_interface_filters)
-        {string attr, int32_t 0, int32_t min, int32_t excludeFlag}
-        {string attr, int32_t value_count, {int32_t value}, int32_t excludeFlag}
-    int32_t group_func, string group_by, string groupSort
-    int32_t maxMatches
-    */
+const Sphinx::Query_t &Sphinx::MultiQuery_t::getQueries() const {
+    return queries;
+}
 
-    //limits, modes
-    data << (uint32_t) attrs.msgOffset << (uint32_t) attrs.msgLimit;
-    data << (uint32_t) attrs.matchMode;
-    data << (uint32_t) attrs.sortMode;
-
-    //sort_by
-    data << attrs.sortBy;
-
-    //query
-    data << query;
-
-    //weights
-    data << (uint32_t) attrs.weights.size();
-    for (Sphinx::IntArray_t::const_iterator weight = attrs.weights.begin() ;
-         weight != attrs.weights.end() ; weight++)
-    {
-        data << (uint32_t) (*weight);
-    }//for
-
-    //indexes
-    data << attrs.indexes;
-
-    //id range
-    data << attrs.minId << attrs.maxId;
-
-    //filters
-    data << (uint32_t)(attrs.minValue.size() + attrs.filter.size()
-                       + attrs.filters.size());
-
-    /*
-     *  old filter interface - range filters
-     */
-    std::map<std::string, uint32_t>::const_iterator min, max;
-    for (min = attrs.minValue.begin(), max = attrs.maxValue.begin() ;
-         min != attrs.minValue.end() ; min++, max++)
-    {
-        //string key
-        data << min->first;
-        //ranges
-        data << (uint32_t) 0
-             << (uint32_t) min->second
-             << (uint32_t) max->second;
-        // excludeFlag - false
-        data << (uint32_t) false;
-    }//for
-
-    /*
-     * old filter interface - enum (value) filters
-     */
-
-    for (std::map<std::string, Sphinx::IntArray_t >::const_iterator filt
-         = attrs.filter.begin() ; filt != attrs.filter.end() ; filt++)
-    {
-        //string key, uint32_t value count
-        data << filt->first;
-        data << (uint32_t) filt->second.size();
-        //values
-        for (Sphinx::IntArray_t::const_iterator val = filt->second.begin() ;
-             val != filt->second.end() ; val++)
-            data << (uint32_t)(*val);
-        // excludeFlag
-        data << (uint32_t) false;
-    }//for
-
-    /*
-     * new filter interface
-     */
-    for (std::vector<Sphinx::Filter_t *>::const_iterator it= attrs.filters.begin();
-         it != attrs.filters.end(); it++)
-    {
-        (*it)->dumpToBuff(data);
-    }
-    //for (uint32_t i=0; i<attrs.filters.size(); i++) {
-    //    attrs.filters[i]->dumpToBuff(data);
-    // }
-
-    //group by
-    data << (uint32_t) attrs.groupFunction;
-    data << attrs.groupBy;
-
-    //max matches
-    data << (uint32_t) attrs.maxMatches;
-
-    // group sort criterion
-    data << attrs.groupSort;
+Sphinx::SearchCommandVersion_t Sphinx::MultiQuery_t::getCommandVersion() const {
+    return commandVersion;
 }//konec fce
 
+//-------------------------------------------------------------------------
 
-void parseResponse_v0_9_6(Sphinx::Query_t &data, Sphinx::Response_t &response)
+unsigned short Sphinx::Client_t::processRequest(
+    const Query_t &query,
+    Query_t &data)
 {
-    uint32_t matchCount;
-    uint32_t wordCount;
-
-    response.clear();
-
-    //number of entries to fetch
-    if (!(data >> matchCount))
-        throw Sphinx::MessageError_t(
-                         "Can't read any data. Probably zero-length response.");
-
-    for (unsigned int i=0 ; i<matchCount ; i++)
-    {
-        Sphinx::ResponseEntry_t entry;
-        data >> entry.documentId;
-        data >> entry.groupId;
-        data >> entry.timestamp;
-        data >> entry.weight;
-
-        response.entry.push_back(entry);
-    }//for
-
-    //uint32_t totalGot, totalFound, timeConsumed;
-
-    data >> response.entriesGot;
-    data >> response.entriesFound;
-    data >> response.timeConsumed;
-
-    //number of words in query
-    data >> wordCount;
-
-    //read word statistics
-    for (unsigned int i=0 ; i<wordCount ; i++)
-    {
-        Sphinx::WordStatistics_t entry;
-        std::string word;
-
-        data >> word;
-        data >> entry.docsHit;
-        data >> entry.totalHits;
-
-        response.word[word] = entry;
-    }//for
-}//konec fce
-
-void parseResponse_v0_9_7(Sphinx::Query_t &data, Sphinx::Response_t &response)
-{
-    uint32_t matchCount;
-    uint32_t wordCount;
-    uint32_t fieldCount;
-    uint32_t attrCount;
-
-    response.clear();
-
-    //read fields
-    if (!(data >> fieldCount))
-        throw Sphinx::MessageError_t(
-                         "Can't read any data. Probably zero-length response.");
-
-    for (unsigned int i=0 ; i<fieldCount ; i++)
-    {
-        std::string name;
-        data >> name;
-        response.field.push_back(name);
-    }//for
-
-    //read attributes
-    data >> attrCount;
-
-    for (unsigned int i = 0 ; i<attrCount ; i++)
-    {
-        std::string name;
-        uint32_t type;
-
-        data >> name;
-        data >>type;
-
-        response.attribute.push_back(std::make_pair(name, type));
-    }//for
-
-    //number of entries to fetch
-    if (!(data >> matchCount))
-        throw Sphinx::MessageError_t(
-                         "Error parsing response.");
-
-    for (unsigned int i=0 ; i<matchCount ; i++)
-    {
-        Sphinx::ResponseEntry_t entry;
-        data >> entry.documentId;
-        data >> entry.weight;
-        entry.groupId = entry.timestamp = 0;
-
-        //read attribute values
-        for (Sphinx::AttributeTypes_t::iterator attr
-             = response.attribute.begin() ; attr!=response.attribute.end() ;
-             attr++)
-        {
-            uint32_t value;
-            data >> value;
-            entry.attribute.insert(std::make_pair(attr->first, value));
-        }//for
-
-        response.entry.push_back(entry);
-    }//for
-
-    //uint32_t totalGot, totalFound, timeConsumed;
-
-    data >> response.entriesGot;
-    data >> response.entriesFound;
-    data >> response.timeConsumed;
-
-    //number of words in query
-    data >> wordCount;
-
-    //read word statistics
-    for (unsigned int i=0 ; i<wordCount ; i++)
-    {
-        Sphinx::WordStatistics_t entry;
-        std::string word;
-
-        data >> word;
-        data >> entry.docsHit;
-        data >> entry.totalHits;
-
-        response.word[word] = entry;
-    }//for
-}//konec fce
-
-void Sphinx::Client_t::query(const std::string& query,
-                             const SearchConfig_t &attrs,
-                             Response_t &response)
-{
-    Query_t data, request;
-    SocketCloser_t socketCloser(socket_d);
     unsigned short responseVersion;
-
-    data.convertEndian = true;
-    request.convertEndian = true;
-
-    //-------------------build query---------------
-    switch (attrs.commandVersion)
-    {
-        case VER_COMMAND_SEARCH_0_9_6:
-            buildQuery_v0_9_6(query, attrs, data);
-            break;
-
-        case VER_COMMAND_SEARCH_0_9_7:
-            buildQuery_v0_9_7(query, attrs, data);
-            break;
-
-        case VER_COMMAND_SEARCH_0_9_7_1:
-            buildQuery_v0_9_7_1(query, attrs, data);
-            break;
-    }//switch
-
-    //prepend header
-    request << (unsigned short) SEARCHD_COMMAND_SEARCH;
-    request << (unsigned short) attrs.commandVersion;
-    request << (uint32_t) data.getLength();
-    request << data;
+    SocketCloser_t socketCloser(socket_d);
 
     //if not connected, connect to the server
     connect();
 
     //send request
-    sendData(request);
+    sendData(query);
 
     //receive response
     if (int status = receiveResponse(data, responseVersion) != SEARCHD_OK)
@@ -885,75 +603,159 @@ void Sphinx::Client_t::query(const std::string& query,
     if (connection.keepAlive)
         socketCloser.doClose = false;
 
+    return responseVersion;
+}//konec fce
+
+void Sphinx::Client_t::query(const std::string& query,
+                             const SearchConfig_t &attrs,
+                             Response_t &response)
+{
+    Query_t data, request;
+    unsigned short responseVersion;
+    data.convertEndian = true;
+    request.convertEndian = true;
+
+    //-------------------build query---------------
+    buildQueryVersion(query, attrs, data);
+    buildHeader(SEARCHD_COMMAND_SEARCH, attrs.commandVersion, data.getLength(),
+                request);
+    request << data;
+
+    //---------------process request--------------
+    responseVersion = processRequest(request, data);    
+
     //--------- parse response -------------------
-    switch (attrs.commandVersion)
-    {
-        case VER_COMMAND_SEARCH_0_9_6:
-            parseResponse_v0_9_6(data, response);
-            response.commandVersion = VER_COMMAND_SEARCH_0_9_6;
-            break;
-
-        case VER_COMMAND_SEARCH_0_9_7:
-        case VER_COMMAND_SEARCH_0_9_7_1:
-            parseResponse_v0_9_7(data, response);
-            response.commandVersion = VER_COMMAND_SEARCH_0_9_7;
-            break;
-
-        default:
-            throw Sphinx::MessageError_t(
-                    "Invalid response version (0x101, 0x104 supported).");
-            break;
-    }//switch
+    parseResponseVersion(data, attrs.commandVersion, response);
 }//konec fce
 
 
+void Sphinx::Client_t::query(const MultiQuery_t &query,
+                                  std::vector<Response_t> &response)
+{
+    // test, if multiquery initialized, get the query
+    const Query_t &queries = query.getQueries();
+    int queryCount = query.getQueryCount();
+    int queriesLength = queries.getLength();
+    SearchCommandVersion_t cmdVer = query.getCommandVersion();
 
+    if(!queryCount || !queriesLength)
+        throw ClientUsageError_t("multiQuery not initialised or zero length.");
+
+    // prepare whole command and response buffer
+    Query_t data, request;
+    data.convertEndian = true;
+    request.convertEndian = true;
+
+    buildHeader(SEARCHD_COMMAND_SEARCH, cmdVer, queries.getLength(),
+                request, queryCount);
+    request << queries;
+
+    // send request and receive response
+    unsigned short responseVersion;
+    responseVersion = processRequest(request, data);    
+
+    //parse responses and return
+    for(int i=0 ; i<queryCount ; i++) {
+        Response_t resp;
+        parseResponseVersion(data, cmdVer, resp);
+        response.push_back(resp);
+    }//for
+}//konec fce
+
+//-----------------------------------------------------------------------------
+
+
+Sphinx::AttributeUpdates_t::AttributeUpdates_t()
+    : commandVersion(Sphinx::VER_COMMAND_UPADTE_0_9_8)
+{}
+
+void Sphinx::AttributeUpdates_t::setAttributeList(
+                                         const std::vector<std::string> &attr)
+{
+    attributes = attr;
+    values.clear();
+}//konec fce
+
+void Sphinx::AttributeUpdates_t::addAttribute(const std::string &attrName)
+{
+    attributes.push_back(attrName);
+    values.clear();
+}//konec fce
+
+void Sphinx::AttributeUpdates_t::addDocument(uint64_t docId,
+                                         const std::vector<Value_t> &values)
+{
+    if(values.size() != attributes.size())
+        throw ClientUsageError_t("Attribute name count must match value count "
+                                 "set in document.");
+
+    this->values[docId] = values;
+}//konec fce
+
+void Sphinx::AttributeUpdates_t::addDocument(uint64_t docId, ValueType_t t, ...)
+{
+    va_list ap;
+    std::vector<Value_t> values;
+    int valueCount = attributes.size();
+
+    va_start(ap, t);
+
+    for (int i=0 ; i<valueCount ; i++)
+    {
+        switch(t) {
+            case VALUETYPE_UINT32: {
+                uint32_t value = va_arg(ap, uint32_t);
+                values.push_back(value);
+                break; }
+            case VALUETYPE_FLOAT: {
+                float value = (float)va_arg(ap, double);
+                values.push_back(value);
+                break; }
+            default:
+                break;
+        }//switch
+    }//for
+    va_end(ap);
+    
+    this->values[docId] = values;
+}//konec fce
+
+void Sphinx::AttributeUpdates_t::setCommandVersion(UpdateCommandVersion_t v)
+{
+    commandVersion = v;
+}//konec fce
+
+void Sphinx::Client_t::updateAttributes(const std::string &index,
+                                        const AttributeUpdates_t &at)
+{
+    Query_t data, request;
+    unsigned short responseVersion;
+    uint32_t updatedCount;
+
+    // build request
+    data.convertEndian = request.convertEndian = true;
+    buildUpdateRequest_v0_9_8(data, index, at);
+
+    // prepend header
+    buildHeader(SEARCHD_COMMAND_UPDATE, at.commandVersion, data.getLength(),
+                request);
+    request << data;
+
+    // process request
+    responseVersion = processRequest(request, data);    
+
+    //parse response
+    parseUpdateResponse_v0_9_8(data, updatedCount);
+    
+    if(updatedCount != at.values.size())
+        throw ClientUsageError_t("Some documents weren't updated "
+                                 "- probably invalid id");
+}//konec fce
+
+//-----------------------------------------------------------------------------
 
 void sphinxClientDummy()
 { }
-
-
-Sphinx::Filter_t::Filter_t()
-    : attrName(""), excludeFlag(false)
-{}
-
-Sphinx::RangeFilter_t::RangeFilter_t(std::string attrName, uint32_t minValue,
-                                     uint32_t maxValue, bool excludeFlag)
-                : minValue(minValue), maxValue(maxValue) 
-{
-    this->attrName = attrName;
-    this->excludeFlag = excludeFlag;
-}
-
-void Sphinx::RangeFilter_t::dumpToBuff(Sphinx::Query_t &data) const
-{
-        data << attrName;
-        data << (uint32_t) 0
-             << (uint32_t) minValue
-             << (uint32_t) maxValue;
-        data << (uint32_t) excludeFlag;
-}
-
-Sphinx::EnumFilter_t::EnumFilter_t(std::string attrName,
-                                   const IntArray_t &values,
-                                   bool excludeFlag)
-        : values(values)
-{
-        this->attrName = attrName;
-        this->excludeFlag = excludeFlag;
-}
-
-void Sphinx::EnumFilter_t::dumpToBuff(Sphinx::Query_t &data) const
-{
-        data << attrName;
-        data << (uint32_t) values.size();
-        for (Sphinx::IntArray_t::const_iterator val = values.begin();
-             val != values.end(); val++)
-        {
-            data << (uint32_t)(*val);
-        }
-        data << (uint32_t) excludeFlag;
-};
 
 
 

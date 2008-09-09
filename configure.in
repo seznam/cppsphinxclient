@@ -36,9 +36,9 @@
 
 
 # initialize autoconf
-AC_INIT(sphinxclient, 1.0.2-6, jan.kirschner@firma.seznam.cz)
+AC_INIT(sphinxclient, 1.1.0, jan.kirschner@firma.seznam.cz)
 # initialize automake(use AC_INIT's arguments)
-AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
+AM_INIT_AUTOMAKE(-Wall foreign)
 
 AC_PREREQ(2.50)
 
@@ -61,83 +61,12 @@ AC_PROG_LIBTOOL
 VERSION_INFO="-version-info 2:0:0"
 AC_SUBST(VERSION_INFO)
 
-### define test-for-header macro
-# $1 = header file name (i.e. "mdbg.h")
-# function fids out the header or terminates configure script
-AC_DEFUN([TEST_HEADER],[
-FOUND="no"
-AC_CHECK_HEADER($1,FOUND="yes")
-if test "$FOUND" = "no"; then
-  # try search dirs
-  for SRCHDIR in \
-      `pwd` \
-      `pwd`/include \
-      $HOME/libs/include \
-      $HOME/cvs/libs/include \
-      $HOME/CVS/libs/include \
-      /home2/$USER/libs/include \
-      /home2/$USER/cvs/libs/include \
-      /home2/$USER/CVS/libs/include \
-      /usr/local/include \
-      ;
-  do
-    AC_MSG_CHECKING(for $1 ($SRCHDIR))
-    AC_TRY_CPP([#include "$SRCHDIR/$1"],FOUND="yes")
-    AC_MSG_RESULT($FOUND)
-    if test "$FOUND" = "yes"; then
-      # add path to env
-      CPPFLAGS="$CPPFLAGS -I$SRCHDIR"
-      break
-    fi
-  done
-fi
-# check for result
-if test "$FOUND" = "no"; then
-  AC_MSG_ERROR(*** Cannot find $1 header!!! ***)
-fi
-])
-### end macro
-
-
-### define test-for-lib macro
-# $1 = library file name (i.e. "mdbg")
-# $2 = test function to link (i.e. "MLOG_LOG")
-# $3 = other libs needed to link against lib in $1
-# function fids out the library or terminates configure script
-AC_DEFUN([TEST_LIB],[
-FOUND="no"
-AC_CHECK_LIB($1,$2,FOUND="yes"; LIBS="-l$1 $LIBS",,$3)
-if test "$FOUND" = "no"; then
-  # try search dirs
-  SAVED_LIBS=$LIBS
-  for SRCHDIR in \
-      `pwd` \
-      $HOME/libs/lib \
-      $HOME/cvs/libs/lib \
-      $HOME/CVS/libs/lib \
-      /home2/$USER/libs/lib \
-      /home2/$USER/cvs/libs/lib \
-      /home2/$USER/CVS/libs/lib \
-      /usr/lib \
-	  ;
-  do
-    AC_MSG_CHECKING(for $2 in -l$1 ($SRCHDIR))
-    LIBS="-l$1 $SAVED_LIBS -L$SRCHDIR $3"
-    AC_TRY_LINK_FUNC($2, FOUND="yes")
-    AC_MSG_RESULT($FOUND)
-    if test "$FOUND" = "yes"; then
-      # add path to env
-      LIBS="-l$1 $SAVED_LIBS -L$SRCHDIR"
-      break
-    fi
-  done
-fi
-# check for result
-if test "$FOUND" = "no"; then
-  AC_MSG_ERROR(*** Cannot find $1 library!!! ***)
-fi
-])
-### end macro
+AC_CHECK_HEADERS([fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h sys/file.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_HEADER(netdb.h, , AC_MSG_ERROR([netdb.h header missing], 1))
+AC_CHECK_HEADER(netinet/in.h, , AC_MSG_ERROR([in.h header missing], 1))
+AC_CHECK_HEADER(sys/socket.h, , AC_MSG_ERROR([socket.h header missing], 1))
+AC_CHECK_HEADER(stdlib.h, , AC_MSG_ERROR([Standart C header missing], 1))
+AC_CHECK_HEADER(unistd.h, , AC_MSG_ERROR([Standart unix header missing], 1))
 
 # generate Makefile
 AC_OUTPUT(version Makefile src/Makefile include/Makefile include/sphinxclient/Makefile)

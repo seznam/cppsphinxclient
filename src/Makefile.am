@@ -45,7 +45,7 @@ AM_CPPFLAGS = -I../include
 lib_LTLIBRARIES = libsphinxclient.la
 
 # from the these sources
-libsphinxclient_la_SOURCES = sphinxclient.cc sphinxclientquery.cc
+libsphinxclient_la_SOURCES = sphinxclient.cc sphinxclientquery.cc value.cc filter.cc queryversions.cc
 
 libsphinxclient_la_LIBADD = -L.
 libsphinxclient_la_DEPENDENCIES = 

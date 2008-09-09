@@ -42,6 +42,25 @@
 #include <sstream>
 #include <netdb.h>
 
+//--------------------------------------------------------------------------------
+// 64bit network byte order workaround
+
+#include <bits/byteswap.h>
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    #define sphinx_hton64l(x) __bswap_64(x)
+#elif __BYTE_ORDER == __BIG_ENDIAN
+    #define sphinx_hton64l(x) (x)
+#endif
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    #define sphinx_ntoh64l(x) __bswap_64(x)
+#elif __BYTE_ORDER == __BIG_ENDIAN
+    #define sphinx_ntoh64l(x) (x)
+#endif
+
+//--------------------------------------------------------------------------------
+
 using namespace Sphinx;
 
 //--------------------------------------------------------------------------------
@@ -108,6 +127,44 @@ Query_t &Query_t::operator << (uint32_t val)
     return *this;
 }//konec fce
 
+Query_t &Query_t::operator << (uint64_t val)
+{
+    if ((dataEndPtr+sizeof(int64_t)) >= dataSize)
+        doubleSizeBuffer();
+    //printf("<< int64_t 0x%lX\n", val);
+
+    if (convertEndian)
+        val = sphinx_hton64l(val);
+
+    memcpy(data+dataEndPtr, &val, sizeof(int64_t));
+    dataEndPtr += sizeof(int64_t);
+    return *this;
+}//konec fce
+
+Query_t &Query_t::operator << (float val)
+{
+    error = false;
+    // float is transferred as a 4-byte dword. if size of float doesn't match
+    // 4 bytes, it is an error
+    if (sizeof(float) != sizeof(uint32_t)) {
+        error = true;
+        return *this;
+    }//if
+
+    if ((dataEndPtr+sizeof(int32_t)) >= dataSize)
+        doubleSizeBuffer();
+    //printf("<< int64_t 0x%lX\n", val);
+    uint32_t nVal;
+    memcpy(&nVal, &val, sizeof(uint32_t));
+
+    if (convertEndian)
+        nVal = htonl(nVal);
+
+    memcpy(data+dataEndPtr, &nVal, sizeof(int32_t));
+    dataEndPtr += sizeof(int32_t);
+    return *this;
+}//konec fce
+
 Query_t &Query_t::operator << (const std::string &val)
 {
     while ((dataEndPtr+val.size()+sizeof(int32_t)) >= dataSize)
@@ -145,6 +202,47 @@ Query_t &Query_t::operator >> (uint32_t &val)
         val = ntohl(val);
 
     //printf(">> int32_t 0x%lX\n", val);
+    return *this;
+}//konec fce
+
+Query_t &Query_t::operator >> (uint64_t &val)
+{
+    error=false;
+
+    if ((dataEndPtr-dataStartPtr) >= sizeof(int64_t))
+    {
+        memcpy(&val, data+dataStartPtr, sizeof(int64_t));
+        dataStartPtr += sizeof(int64_t);
+    }//if
+    else
+        error=true;
+
+    if (convertEndian)
+        val = sphinx_ntoh64l(val);
+
+    //printf(">> int32_t 0x%lX\n", val);
+    return *this;
+}//konec fce
+
+Query_t &Query_t::operator >> (float &val)
+{
+    error=false;
+
+    if ((dataEndPtr-dataStartPtr) >= sizeof(int32_t) &&
+       sizeof(float)==sizeof(int32_t))
+    {
+        uint32_t nVal;
+        memcpy(&nVal, data+dataStartPtr, sizeof(int32_t));
+        dataStartPtr += sizeof(int32_t);
+
+        if (convertEndian)
+            nVal = ntohl(nVal);
+        memcpy(&val, &nVal, sizeof(float));
+    }//if
+    else
+        error=true;
+
+    //printf(">> float hex 0x%lX\n", val);
     return *this;
 }//konec fce
 
@@ -249,5 +347,6 @@ void Query_t::read(int socket_d, int bytesToRead, Client_t &connection,
         dataEndPtr += result;
         bytesToRead -= result;
     }
+
 
 }

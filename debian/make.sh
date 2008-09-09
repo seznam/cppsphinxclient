@@ -276,6 +276,8 @@ if test -z "${SKIP_BUILD}"; then
         # go to the project root
         cd ..
 
+        # run autotools and recreate configure script
+        autoreconf --install
         # configure sources -- we want to instal under /usr
         # info goes to share dir
         ./configure --prefix=/usr --infodir=/usr/share/info

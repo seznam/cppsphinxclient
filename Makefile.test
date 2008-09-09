@@ -35,19 +35,26 @@
 #
 
 CXX=g++
-CXXFLAGS=-Wall -pedantic -I"./include"
-LINKFLAGS=-lsphinxclient
+CXXFLAGS=-Wall -pedantic -I"./include" -g
+#LINKFLAGS=-lsphinxclient -L"./src/.libs"
+LINKFLAGS= -g -Od
 
 COMPILE=$(CXX) -c $(CXXFLAGS)
 LINK=$(CXX) $(LINKFLAGS)
 
-all: sphinxtest
+all: sphinxtest sphinxtest2
 
-sphinxtest: sphinxtest.o
-	$(LINK) -o sphinxtest sphinxtest.o
+sphinxtest: sphinxtest.o src/.libs/libsphinxclient.a
+	$(LINK) -o sphinxtest sphinxtest.o src/.libs/libsphinxclient.a
 
 sphinxtest.o: sphinxtest.cc
 	$(COMPILE) -o sphinxtest.o sphinxtest.cc
 
+sphinxtest2: sphinxtest2.o src/.libs/libsphinxclient.a
+	$(LINK) -o sphinxtest2 sphinxtest2.o src/.libs/libsphinxclient.a
+
+sphinxtest2.o: sphinxtest2.cc
+	$(COMPILE) -o sphinxtest2.o sphinxtest2.cc
+
 clean:
-	rm -f *.o sphinxtest
+	rm -f *.o sphinxtest sphinxtest2

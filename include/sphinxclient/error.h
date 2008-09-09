@@ -63,7 +63,9 @@ enum ErrorType_t {
     STATUS_OK = 0,        //!< @brief everything OK
     CONNECTION_ERROR = 1, //!< @brief unable to create connection to the searchd
     SERVER_ERROR = 2,   //!< @brief communication with searchd failed (version ?)
-    MESSAGE_ERROR = 3     //!< @brief received invalid message format (short ?)
+    MESSAGE_ERROR = 3,    //!< @brief received invalid message format (short ?)
+    VALUE_TYPE_ERROR = 4,  //!< @brief expected another type of attribute value
+    CLIENT_USAGE_ERROR = 5 //!< @brief invalid combination of function call
 };
 
 /** @brief Exception type thrown by Sphinx::Client_t::methods
@@ -122,6 +124,30 @@ struct ConnectionError_t : public Error_t
 {
     ConnectionError_t(const std::string &msg)
                        :Error_t(CONNECTION_ERROR, msg) {}
+};//struct
+
+
+/** @brief Exception is thrown when a value is being read from Value_t
+  *        and the expected type does not match value type
+  * @see Error_t
+  */
+
+struct ValueTypeError_t : public Error_t
+{
+    ValueTypeError_t(const std::string &msg)
+                       :Error_t(VALUE_TYPE_ERROR, msg) {}
+};//struct
+
+
+/** @brief Exception is thrown when a invalid combination of function calls
+  *        occurs. For ex. addQuery call before initQuery call.
+  * @see Error_t
+  */
+
+struct ClientUsageError_t : public Error_t
+{
+    ClientUsageError_t(const std::string &msg)
+                       :Error_t(CLIENT_USAGE_ERROR, msg) {}
 };//struct
 
 

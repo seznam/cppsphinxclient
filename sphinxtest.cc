@@ -44,60 +44,63 @@
 
 int main()
 {
-    Sphinx::ConnectionConfig_t config;
-    config.host = "localhost";
-    config.port = 3313;
-    config.keepAlive = true;
-    config.connectTimeout = 2000;
-    config.readTimeout = 2000;
-    config.writeTimeout = 2000;
-
-
+    Sphinx::ConnectionConfig_t config (
+        "localhost", // hostname
+        3312,        // port
+        true,        // keepalive
+        2000,        // connect timeout
+        20000,       // read timeout
+        2000         // write timeout
+    );
+       
     Sphinx::Client_t connection(config);
-    Sphinx::Response_t result;
+    std::vector<Sphinx::Response_t> results;
     Sphinx::SearchConfig_t settings;
 
     printf("starting.....\n");
 
-    try{
-        connection.connect();
-        printf("connection success.\n");
-    }
-    catch(Sphinx::Error_t e)
-    {
-        printf("connection error:\n%s\n", e.errMsg.c_str());
-        return 1;
-    }
-
     // search settings
     settings.msgOffset = 0;
     settings.msgLimit = 20;
-    settings.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_7_1;
-    settings.matchMode = Sphinx::SPH_MATCH_EXTENDED;
+    //settings.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_7_1;
+    settings.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_8;
+    settings.matchMode = Sphinx::SPH_MATCH_ALL;
     settings.maxMatches = 1000;
+    settings.indexes = "test1";
+    settings.queryComment = "comment";
+    settings.maxQueryTime = 10000;
 
     // preparation of enumeration filter
     Sphinx::IntArray_t ids;
-    ids.push_back(847);
-    ids.push_back(831);
-    ids.push_back(875);
-    ids.push_back(840);
+    ids.push_back(23);
+    ids.push_back(10);
 
-    // initialization of range and enum filter
-    settings.addRangeFilter("attr1", 1, 600, true);
-    settings.addEnumFilter("attr2", ids, true);
+    // inicialise range and enum filter
+    // outside of interval 50-70, inside of interval 11-60
+    settings.addRangeFilter("att_uint", 50, 60, true);
+    settings.addRangeFilter("att_uint", 11, 100, false);
+    // skip document id in ids
+    settings.addEnumFilter("att_uint", ids, true);
 
-    // sort settings
-    settings.sortMode = Sphinx::SPH_SORT_EXTENDED;
-    settings.sortBy = "vat_price asc";
+    // sorting - relevance ascending
+    settings.sortMode = Sphinx::SPH_SORT_RELEVANCE;
 
-    // group settings
+    // groups settings
     settings.groupFunction = Sphinx::SPH_GROUPBY_ATTR;
-    settings.groupBy = "attr1";
-    settings.groupSort = "attr2 asc";
+    settings.groupBy = "att_group";
+    settings.groupSort = "@id asc";
+
+    // create multiquery
+    Sphinx::MultiQuery_t query(Sphinx::VER_COMMAND_SEARCH_0_9_8);
+    query.addQuery("pes ahoj", settings);
+    settings.groupBy = "att_uint";
+    query.addQuery("pes ahoj", settings);
 
     try{
-        connection.query("@field1 hello | @field2 world", settings, result);
+        //multi query
+        connection.query(query, results);
+        //single query
+        //connection.query("pes ahoj", settings, result);
         printf("query success.\n");
     }
     catch(Sphinx::Error_t e)
@@ -106,53 +109,90 @@ int main()
         return 2;
     }
 
-    printf("command version: 0x%X\n", result.commandVersion);
-    printf("field count:       %d\n", result.field.size());
-    printf("attribute count:   %d\n", result.attribute.size());
-    printf("match count:       %d\n", result.entry.size());
-    printf("word count:        %d\n", result.word.size());
+    printf("result count:      %d\n", results.size());
+    if(results.size())
+        printf("command version: 0x%X\n", results[0].commandVersion);
 
-    printf("\nFields:\n");
-    for (int i=0;i<result.field.size();i++)
+    for(int resId=0 ; resId<(int)results.size() ; resId++)
     {
-        printf("    %s\n", result.field[i].c_str());
-    }//for
+        printf("------------------------ result %03d ---------------------\n", resId+1);
+        Sphinx::Response_t &result = results[resId];
+        printf("field count:       %d\n", result.field.size());
+        printf("attribute count:   %d\n", result.attribute.size());
+        printf("match count:       %d\n", result.entry.size());
+        printf("word count:        %d\n", result.word.size());
 
-    printf("\nAttributes:\n");
-    for (Sphinx::AttributeTypes_t::iterator it=result.attribute.begin() ;
-         it!=result.attribute.end();it++)
-    {
-        printf("    name: %s, type: %d\n", it->first.c_str(), it->second);
-    }//for
+        printf("\nFields:\n");
+        for (int i=0;i<result.field.size();i++)
+        {
+            printf("    %s\n", result.field[i].c_str());
+        }//for
 
-    printf("\nWords:\n");
-    for (std::map<std::string, Sphinx::WordStatistics_t>::iterator it
-         = result.word.begin() ; it!=result.word.end() ; it++)
-    {
-        printf("    Word %s: %d docs / %d hits\n", it->first.c_str(), it->second.docsHit, it->second.totalHits);
-    }//for
+        printf("\nAttributes:\n");
+        for (Sphinx::AttributeTypes_t::iterator it=result.attribute.begin() ;
+             it!=result.attribute.end();it++)
+        {
+            if (it->second & Sphinx::SPH_ATTR_MULTI) {
+                printf("    name: %s, multi type: %d\n", it->first.c_str(), (it->second ^ Sphinx::SPH_ATTR_MULTI));
+            }//if
+            else
+                printf("    name: %s, type: %d\n", it->first.c_str(), it->second);
+        }//for
 
-    printf("entries: %d\n", result.entriesGot);
-    printf("documents: %d\n", result.entriesFound);
-    printf("duration: %d\n", result.timeConsumed);
+        printf("\nWords:\n");
+        for (std::map<std::string, Sphinx::WordStatistics_t>::iterator it
+             = result.word.begin() ; it!=result.word.end() ; it++)
+        {
+            printf("    Word %s: %d docs / %d hits\n", it->first.c_str(), it->second.docsHit, it->second.totalHits);
+        }//for
 
-    // print results with attributes
-    printf("\nResponse:\n");
+        printf("entries: %d\n", result.entriesGot);
+        printf("documents: %d\n", result.entriesFound);
+        printf("duration: %d\n", result.timeConsumed);
+        printf("64bit ID: %d\n", result.use64bitId);
 
-    int i = 0; 
-    for (std::vector<Sphinx::ResponseEntry_t>::const_iterator it = result.entry.begin();
-         it != result.entry.end(); it++) {
+        // print results with attributes
+        printf("\nResponse:\n");
 
-        i++;
-        printf("%d) %d ", i, it->documentId);
-        for (std::map<std::string, uint32_t>::const_iterator j =
-                            it->attribute.begin();
-                j != it->attribute.end();
-                j++) {
-            printf("--%s:%d-- ", j->first.c_str(), j->second);
-        }
-        printf("\n");
-    }
+        int i = 0; 
+        for (std::vector<Sphinx::ResponseEntry_t>::const_iterator it = result.entry.begin();
+             it != result.entry.end(); it++) {
+
+            i++;
+            printf("%d) id: %ld ", i, it->documentId);
+            for (std::map<std::string, Sphinx::Value_t>::const_iterator j =
+                                it->attribute.begin();
+                    j != it->attribute.end() ; j++)
+            {
+                switch(j->second.getValueType()) {
+                case Sphinx::VALUETYPE_FLOAT:
+                    printf("%s:%.2f | ", j->first.c_str(), (float)(j->second));
+                    break;
+                case Sphinx::VALUETYPE_VECTOR: {
+                    char comma[2] = {'\0', '\0'};
+                    std::vector<Sphinx::Value_t> vec = j->second;
+                    printf("%s:(", j->first.c_str());
+                    for (std::vector<Sphinx::Value_t>::iterator vi=vec.begin() ; vi!=vec.end() ; vi++) {
+                        if(vi->getValueType() == Sphinx::VALUETYPE_FLOAT)
+                            printf("%s%ff", comma, (float)(*vi));
+                        else
+                            printf("%s%dd", comma, (uint32_t)(*vi));
+                        comma[0] = ',';
+                    }//for
+                    printf(") | ");
+                    break; }
+                case Sphinx::VALUETYPE_UINT32:
+                default:
+                    printf("%s:%d | ", j->first.c_str(), (uint32_t)(j->second));
+                    break;
+                }//switch
+            }
+            printf("\n");
+        }//for response entries
+    }//for response
+
+    printf("----------------------------- end ------------------------\n");
+
     return 0;
 }//main
 
