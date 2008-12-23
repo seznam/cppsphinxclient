@@ -604,9 +604,18 @@ void parseResponse_v0_9_8(Sphinx::Query_t &data, Sphinx::Response_t &response)
     if(!(data >> errorStatus))
         throw Sphinx::MessageError_t(
                 "Can't read any data. Probably zero-length response.");
-    if(errorStatus!=Sphinx::SEARCHD_OK)
-        throw Sphinx::MessageError_t(
-                "Response status OK, but query status failed.");
+    if(errorStatus!=Sphinx::SEARCHD_OK) {
+        std::string errmsg = "Response status OK, but query status failed";
+        std::string description;
+
+        if (!(data >> description))
+            errmsg += std::string(".");
+        else
+            errmsg += std::string(": ") + description;
+
+        if (errorStatus != Sphinx::SEARCHD_WARNING)
+            throw Sphinx::MessageError_t(errmsg);
+    }//if
 
     //read fields
     if (!(data >> fieldCount))
