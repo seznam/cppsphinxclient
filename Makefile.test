@@ -42,7 +42,7 @@ LINKFLAGS= -g -Od
 COMPILE=$(CXX) -c $(CXXFLAGS)
 LINK=$(CXX) $(LINKFLAGS)
 
-all: sphinxtest sphinxtest2
+all: sphinxtest sphinxtest2 keywordstest
 
 sphinxtest: sphinxtest.o src/.libs/libsphinxclient.a
 	$(LINK) -o sphinxtest sphinxtest.o src/.libs/libsphinxclient.a
@@ -56,5 +56,11 @@ sphinxtest2: sphinxtest2.o src/.libs/libsphinxclient.a
 sphinxtest2.o: sphinxtest2.cc
 	$(COMPILE) -o sphinxtest2.o sphinxtest2.cc
 
+keywordstest: keywordstest.o src/.libs/libsphinxclient.a
+	$(LINK) -o keywordstest keywordstest.o src/.libs/libsphinxclient.a
+
+keywordstest.o: keywordstest.cc
+	$(COMPILE) -o keywordstest.o keywordstest.cc
+
 clean:
-	rm -f *.o sphinxtest sphinxtest2
+	rm -f *.o sphinxtest sphinxtest2 keywordstest

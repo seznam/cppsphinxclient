@@ -49,6 +49,8 @@ enum SearchCommandVersion_t { VER_COMMAND_SEARCH_0_9_6 = 0x101,
 
 enum UpdateCommandVersion_t { VER_COMMAND_UPADTE_0_9_8 = 0x101 };
 
+enum KeywordsCommandVersion_t { VER_COMMAND_KEYWORDS_0_9_8 = 0x100 };
+
 }//namespace
 
 #endif

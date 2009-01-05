@@ -80,6 +80,15 @@ void buildUpdateRequest_v0_9_8(Sphinx::Query_t &data,
 
 void parseUpdateResponse_v0_9_8(Sphinx::Query_t &data, uint32_t &updateCount);
 
+void buildKeywordsRequest_v0_9_8(Sphinx::Query_t &data,
+                                 const std::string &index,
+                                 const std::string &query,
+                                 bool fetchStats);
+
+void parseKeywordsResponse_v0_9_8(Sphinx::Query_t &data,
+                                  std::vector<Sphinx::KeywordResult_t> &result,
+                                  bool fetchStats);
+
 //------------------------------------------------------------------------------
 // Connection configuration
 //------------------------------------------------------------------------------
@@ -763,6 +772,35 @@ void Sphinx::Client_t::updateAttributes(const std::string &index,
     if(updatedCount != at.values.size())
         throw ClientUsageError_t("Some documents weren't updated "
                                  "- probably invalid id");
+}//konec fce
+
+//-----------------------------------------------------------------------------
+
+std::vector<Sphinx::KeywordResult_t> Sphinx::Client_t::getKeywords(
+    const std::string &index,
+    const std::string &query,
+    bool getWordStatistics)
+{
+    Query_t data, request;
+    unsigned short responseVersion;
+    std::vector<KeywordResult_t> result;
+
+    // build request
+    data.convertEndian = request.convertEndian = true;
+    buildKeywordsRequest_v0_9_8(data, index, query, getWordStatistics);
+
+    // prepend header
+    buildHeader(SEARCHD_COMMAND_KEYWORDS, VER_COMMAND_KEYWORDS_0_9_8,
+                data.getLength(), request);
+    request << data;
+
+    // process request
+    responseVersion = processRequest(request, data);    
+
+    //parse response
+    parseKeywordsResponse_v0_9_8(data, result, getWordStatistics);
+    
+    return result;
 }//konec fce
 
 //-----------------------------------------------------------------------------

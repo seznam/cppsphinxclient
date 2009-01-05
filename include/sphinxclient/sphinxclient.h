@@ -355,6 +355,16 @@ struct Response_t
     void clear();
 };//struct
 
+/** @brief keywords request result data for one word query */
+struct KeywordResult_t {
+    //! @brief tokenized word form
+    std::string tokenized;
+    //! @brief normalized word form
+    std::string normalized;
+    //! @brief word statistics - total hits/docs
+    WordStatistics_t statistics;
+};
+
 /** @brief multi query data structure
   *
   * This class provides methods and storage for creating multi-queries.
@@ -491,6 +501,21 @@ public:
       * @see AttributeUpdates_t
       */
     void updateAttributes(const std::string &index, const AttributeUpdates_t &at);
+
+    /** @brief send a keywords request to searchd
+      *
+      * Send a request to analyze query words. Run tokenizer and normalization.
+      *
+      * @param index name of index to use tokenizer settings from. Does not
+      *              support wildcards (*).
+      * @param query query to analyze.
+      * @param getWordStatistics when true, fetch also total word docs/hits
+      * @returns tokenized and normalized words
+      */
+    std::vector<KeywordResult_t> getKeywords(
+        const std::string &index,
+        const std::string &query,
+        bool getWordStatistics = false);
 
     void waitSocketReadable(const std::string &stage); 
 

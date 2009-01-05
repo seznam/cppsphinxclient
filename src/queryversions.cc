@@ -843,5 +843,62 @@ void parseUpdateResponse_v0_9_8(Sphinx::Query_t &data, uint32_t &updateCount)
 }//konec fce
 
 
+void buildKeywordsRequest_v0_9_8(Sphinx::Query_t &data,
+                                 const std::string &index,
+                                 const std::string &query,
+                                 bool fetchStats)
+{
+    /*
+    string query
+    string indexName
+    uint32_t hits
+    */
+    // query to analyze
+    data << query;
+    // index to get settings
+    data << index;
+    // whether to etch additional statistics
+    data << (uint32_t)fetchStats;
+}//konec fce
+
+void parseKeywordsResponse_v0_9_8(Sphinx::Query_t &data,
+                                  std::vector<Sphinx::KeywordResult_t> &result,
+                                  bool fetchStats)
+{
+    /*
+    uint32_t nWords
+    {
+      string tokenized
+      string normalized
+      [ uint32_t docs, uint32_t hits ]
+    }
+    */
+    uint32_t nWords;
+
+    // prepare result
+    result.clear();
+
+    // get number of words
+    if(!(data >> nWords))
+        throw Sphinx::MessageError_t("Error parsing response - length mismatch.");
+
+    // get word data
+    for (unsigned i=0 ; i<nWords ; i++) {
+        Sphinx::KeywordResult_t entry;
+
+        data >> entry.tokenized;
+        data >> entry.normalized;
+
+        if (fetchStats) {
+            data >> entry.statistics.docsHit;
+            data >> entry.statistics.totalHits;
+        } else {
+            entry.statistics.docsHit = 0;
+            entry.statistics.totalHits = 0;
+        }//else
+
+        result.push_back(entry);
+    }//for
+}//konec fce
 
 

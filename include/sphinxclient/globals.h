@@ -46,7 +46,8 @@ namespace Sphinx {
 
 enum Command_t { SEARCHD_COMMAND_SEARCH = 0,
                  SEARCHD_COMMAND_EXCERPT = 1,
-                 SEARCHD_COMMAND_UPDATE = 2 };
+                 SEARCHD_COMMAND_UPDATE = 2,
+                 SEARCHD_COMMAND_KEYWORDS = 3 };
 
 enum ExcerptCommandVersion_t { VER_COMMAND_EXCERPT = 0x100 };
 
