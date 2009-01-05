@@ -597,6 +597,7 @@ void parseResponse_v0_9_8(Sphinx::Query_t &data, Sphinx::Response_t &response)
     uint32_t fieldCount;
     uint32_t attrCount;
     uint32_t errorStatus;
+    std::string errmsg;
 
     response.clear();
 
@@ -605,7 +606,7 @@ void parseResponse_v0_9_8(Sphinx::Query_t &data, Sphinx::Response_t &response)
         throw Sphinx::MessageError_t(
                 "Can't read any data. Probably zero-length response.");
     if(errorStatus!=Sphinx::SEARCHD_OK) {
-        std::string errmsg = "Response status OK, but query status failed";
+        errmsg = "Response status OK, but query status failed";
         std::string description;
 
         if (!(data >> description))
@@ -727,6 +728,9 @@ void parseResponse_v0_9_8(Sphinx::Query_t &data, Sphinx::Response_t &response)
 
         response.word[word] = entry;
     }//for
+
+    if (errorStatus == Sphinx::SEARCHD_WARNING)
+        throw Sphinx::Warning_t(std::string("Warning: ") + errmsg);
 }//konec fce
 
 //------------------------------------------------------------------------------
@@ -775,8 +779,8 @@ void parseResponseVersion(Sphinx::Query_t &data,
             break;
 
         case Sphinx::VER_COMMAND_SEARCH_0_9_8:
-            parseResponse_v0_9_8(data, response);
             response.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_8;
+            parseResponse_v0_9_8(data, response);
             break;
 
         default:

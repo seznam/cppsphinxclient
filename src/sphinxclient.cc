@@ -655,11 +655,24 @@ void Sphinx::Client_t::query(const MultiQuery_t &query,
     responseVersion = processRequest(request, data);    
 
     //parse responses and return
+    std::string lastQueryWarning;
+
     for(int i=0 ; i<queryCount ; i++) {
         Response_t resp;
-        parseResponseVersion(data, cmdVer, resp);
+
+        try {
+            parseResponseVersion(data, cmdVer, resp);
+        } catch (const Warning_t &wt) {
+            std::ostringstream msg;
+            msg << "Query " << (i+1) << ": " << wt.what();
+            lastQueryWarning = msg.str();
+        }//try
+
         response.push_back(resp);
     }//for
+
+    if (!lastQueryWarning.empty())
+        throw Warning_t(lastQueryWarning);
 }//konec fce
 
 //-----------------------------------------------------------------------------

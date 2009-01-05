@@ -93,6 +93,29 @@ struct Error_t : public std::exception
 };//struct
 
 
+/** @brief Exception type thrown by Sphinx::Client_t::methods
+  *
+  * contains error code (see SCErrorType) and a brief error description
+  *
+  * @see ErrorType_t
+  * @see Client_t
+  */
+
+struct Warning_t : public std::exception
+{
+    std::string errMsg;
+
+    Warning_t(const std::string &msg) : std::exception() ,errMsg(msg)
+    {}
+
+    virtual const char* what() const throw() {
+        return errMsg.c_str();
+    }
+
+    virtual ~Warning_t() throw(){}
+};//struct
+
+
 /** @brief Exception is thrown when an search server error occured (invalid
   *        version).
   * @see Error_t
