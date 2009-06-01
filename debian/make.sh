@@ -162,7 +162,7 @@ function build_package {
             && cp ${PROJECT_NAME}.conffiles ${CONTROL_DIR}/conffiles
 
     # Remove any lost CVS entries in the package tree.
-    find ${DEBIAN_BASE} -path "*CVS*" -exec rm -Rf '{}' \;
+    find ${DEBIAN_BASE} -path "*svn*" -exec rm -Rf '{}' \;
 
     # Compute package's size.
     SIZEDU=$(du -sk ${DEBIAN_BASE} | awk '{print $1}')
@@ -277,7 +277,7 @@ if test -z "${SKIP_BUILD}"; then
         cd ..
 
         # run autotools and recreate configure script
-        autoreconf --install
+        autoreconf --install --force
         # configure sources -- we want to instal under /usr
         # info goes to share dir
         ./configure --prefix=/usr --infodir=/usr/share/info

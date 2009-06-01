@@ -45,6 +45,7 @@
 
 #include <sstream>
 #include <errno.h>
+#include <string.h>
 namespace Sphinx
 {
 
