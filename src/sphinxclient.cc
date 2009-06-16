@@ -147,11 +147,12 @@ Sphinx::SearchConfig_t::SearchConfig_t(SearchCommandVersion_t cmdVer):
     rankingMode(SPH_RANK_PROXIMITY_BM25),
     sortBy(""), groupBy(""), groupFunction(SPH_GROUPBY_DAY), maxMatches(1000),
     groupSort("@group desc"), commandVersion(cmdVer), indexes("*"),
-    searchCutOff(0), distRetryCount(0), distRetryDelay(0), maxQueryTime(0)
+    searchCutOff(0), distRetryCount(0), distRetryDelay(0), maxQueryTime(0),
+    selectClause("*")
 {}
 
-void Sphinx::SearchConfig_t::addRangeFilter(std::string attrName, uint32_t minValue,
-                                       uint32_t maxValue,
+void Sphinx::SearchConfig_t::addRangeFilter(std::string attrName, uint64_t minValue,
+                                       uint64_t maxValue,
                                        bool excludeFlag)
 {
     this->filters.push_back(new RangeFilter_t(attrName, minValue,
@@ -159,7 +160,7 @@ void Sphinx::SearchConfig_t::addRangeFilter(std::string attrName, uint32_t minVa
 }
 
 void Sphinx::SearchConfig_t::addEnumFilter(std::string attrName,
-                                      const IntArray_t &values,
+                                      const Int64Array_t &values,
                                       bool excludeFlag)
 {
     this->filters.push_back(new EnumFilter_t(attrName, values,
@@ -173,6 +174,27 @@ void Sphinx::SearchConfig_t::addFloatRangeFilter(std::string attrName,
                                                    maxValue, excludeFlag));
 }
 
+void Sphinx::SearchConfig_t::addAttributeOverride(
+                                 const std::string &attrName,
+                                 AttributeType_t attrType,
+                                 const std::map<uint64_t, Value_t> &values)
+{
+    attributeOverrides[attrName] = std::make_pair(attrType, values);
+}//konec fce
+
+void Sphinx::SearchConfig_t::addAttributeOverride(
+                                 const std::string &attrName,
+                                 AttributeType_t attrType,
+                                 uint64_t docId, const Value_t &value)
+{
+    // get or insert attribute entry
+    std::pair<AttributeType_t, std::map<uint64_t, Value_t> >
+        &override = attributeOverrides[attrName];
+
+    // update the entry
+    override.first = attrType;
+    override.second[docId] = value;
+}//konec fce
 
 //------------------------------------------------------------------------------
 

@@ -52,7 +52,8 @@ namespace Sphinx
 enum ValueType_t {
     VALUETYPE_UINT32 = 0, //!< @brief 32bit unsigned integer
     VALUETYPE_FLOAT = 1,  //!< @brief 32bit floating point value
-    VALUETYPE_VECTOR = 2  //!< @brief vector of uint32_ts or floats
+    VALUETYPE_VECTOR = 2, //!< @brief vector of uint32_ts or floats
+    VALUETYPE_UINT64 = 3  //!< @brief 64bit unsigned integer
 };
 
 class ValueBase_t;
@@ -78,6 +79,8 @@ public:
     Value_t(float v);
     //! @brief initializes Value_t as vector type
     Value_t(const std::vector<Value_t> &v);
+    //! @brief initializes Value_t as uint64_t type
+    Value_t(uint64_t v);
 
     ~Value_t(){ clear(); }
 
@@ -114,6 +117,13 @@ public:
      *  float, throws ValueTypeError_t;
      */
     operator float () const throw (ValueTypeError_t);
+
+    /** @brief overloaded implicit conversion operator to uint64_t
+     *
+     *  Returns value as uint64_t. If the current value type is other than
+     *  uint64_t, throws ValueTypeError_t;
+     */
+    operator uint64_t () const throw (ValueTypeError_t);
 };//class
 
 

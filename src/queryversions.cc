@@ -441,6 +441,176 @@ void buildQuery_v0_9_8(const std::string &query,
 }//konec fce
 
 
+void buildQuery_v0_9_9(const std::string &query,
+                       const Sphinx::SearchConfig_t &attrs,
+                       Sphinx::Query_t &data)
+{
+    /*
+    int32_t offset, limit, matchMode, rankingMode, sortMode
+    string sort_by
+    string query
+    int32_t number_of_weights {int32_t weight}
+    string indexes
+    int32_t 1 ... 64bit id range marker
+    int64_t min_id, int64_t max_id
+    
+    int32_t total_filter_count
+        {
+        string attribute_name
+        int32_t filter_type
+        ( int32_t value_count {int64_t value} ) - zmena na 64bit
+         | (int64_t min, max)                   - zmena na 64bit
+         | (packed_float32_t min, max)
+        int32_t excludeFlag
+        }
+
+    int32_t group_func, string group_by
+    int32_t maxMatches
+    string groupSort
+    int32_t cutoff, retrycount, retrydelay
+    string groupdistinct
+    
+    int32_t anchor_point_count
+    {string attr_lattitude, string attr_longitude, packed_float32_t lattitude, packed_float32_t longitude}
+
+    int32_t indexWeightCount {string indexName, int32_t weight}
+    int32_t maxQueryTime
+    int32_t fieldWeightCount {string fieldName, int32_t weight}
+    string comment
+
+    int32_t overrideCount - TODO pridano v 0.9.9
+        {
+        string attrName
+        int32_t documentCount
+            {
+                int64_t docId
+                (int64_t|packed_float32_t|int32_t) attrValue
+            }
+        }
+
+    string selectClause - pridano v 0.9.9
+    */
+
+    //limits, modes
+    data << (uint32_t) attrs.msgOffset << (uint32_t) attrs.msgLimit;
+    data << (uint32_t) attrs.matchMode;
+    data << (uint32_t) attrs.rankingMode;
+    data << (uint32_t) attrs.sortMode;
+
+    //sort_by
+    data << attrs.sortBy;
+
+    //query
+    data << query;
+
+    //weights
+    data << (uint32_t) attrs.weights.size();
+    for (Sphinx::IntArray_t::const_iterator weight = attrs.weights.begin() ;
+         weight != attrs.weights.end() ; weight++)
+    {
+        data << (uint32_t) (*weight);
+    }//for
+
+    //indexes
+    data << attrs.indexes;
+
+    //id range
+    data << (uint32_t) 1; //64bit id range marker
+    data << (uint64_t)(attrs.minId) << (uint64_t)(attrs.maxId);
+
+    //filters
+    data << (uint32_t)(attrs.minValue.size() + attrs.filter.size()
+                       + attrs.filters.size());
+
+    /*
+     *  old filter interface - range filters
+     */
+    std::map<std::string, uint32_t>::const_iterator min, max;
+    for (min = attrs.minValue.begin(), max = attrs.maxValue.begin() ;
+         min != attrs.minValue.end() ; min++, max++)
+    {
+        Sphinx::RangeFilter_t filter(min->first, min->second, max->second);
+        filter.dumpToBuff(data, Sphinx::VER_COMMAND_SEARCH_0_9_9);
+    }//for
+
+    /*
+     * old filter interface - enum (value) filters
+     */
+
+    for (std::map<std::string, Sphinx::IntArray_t >::const_iterator filt
+         = attrs.filter.begin() ; filt != attrs.filter.end() ; filt++)
+    {
+        Sphinx::EnumFilter_t filter(filt->first, filt->second);
+        filter.dumpToBuff(data, Sphinx::VER_COMMAND_SEARCH_0_9_9);
+    }//for
+
+    /*
+     * new filter interface
+     */
+    for (std::vector<Sphinx::Filter_t *>::const_iterator it= attrs.filters.begin();
+         it != attrs.filters.end(); it++)
+    {
+        (*it)->dumpToBuff(data, Sphinx::VER_COMMAND_SEARCH_0_9_9);
+    }
+
+    //group by
+    data << (uint32_t) attrs.groupFunction;
+    data << attrs.groupBy;
+
+    //max matches
+    data << (uint32_t) attrs.maxMatches;
+
+    // group sort criterion
+    data << attrs.groupSort;
+
+    //search cutoff, distributed search retry count and delay
+    data << (uint32_t) attrs.searchCutOff
+         << (uint32_t) attrs.distRetryCount
+         << (uint32_t) attrs.distRetryDelay;
+
+    //group distinct attribute
+    data << attrs.groupDistinctAttribute;
+
+    //geographical anchor points
+    data << (uint32_t) attrs.anchorPoints.size();
+    for (std::vector<Sphinx::GeoAnchorPoint_t>::const_iterator apI = \
+         attrs.anchorPoints.begin() ;
+         apI != attrs.anchorPoints.end() ; apI++)
+    {
+        data << apI->lattitudeAttributeName << apI->longitudeAttributeName;
+        data << apI->lattitude << apI->longitude;
+    }//for
+
+    //per-index weights
+    data << (uint32_t)attrs.indexWeights.size();
+    for (std::map<std::string, uint32_t>::const_iterator iw=attrs.indexWeights.begin();
+         iw != attrs.indexWeights.end() ; iw++)
+    {
+        data << iw->first << (uint32_t)iw->second;
+    }//for
+
+    //maximum query duration
+    data << (uint32_t)attrs.maxQueryTime;
+
+    //per-field weights
+    data << (uint32_t)attrs.fieldWeights.size();
+    for (std::map<std::string, uint32_t>::const_iterator fw=attrs.fieldWeights.begin();
+         fw != attrs.fieldWeights.end() ; fw++)
+    {
+        data << fw->first << (uint32_t)fw->second;
+    }//for
+
+    //query comment
+    data << attrs.queryComment;
+
+    //attribute overrides - TODO, now just zero count
+    data << (uint32_t) 0;
+
+    //select clause
+    data << attrs.selectClause;
+}//konec fce
+
+
 void parseResponse_v0_9_6(Sphinx::Query_t &data, Sphinx::Response_t &response)
 {
     uint32_t matchCount;
@@ -757,6 +927,10 @@ void buildQueryVersion(const std::string &query,
         case Sphinx::VER_COMMAND_SEARCH_0_9_8:
             buildQuery_v0_9_8(query, attrs, data);
             break;
+
+        case Sphinx::VER_COMMAND_SEARCH_0_9_9:
+            buildQuery_v0_9_9(query, attrs, data);
+            break;
     }//switch
 }//konec fce
 
@@ -779,13 +953,16 @@ void parseResponseVersion(Sphinx::Query_t &data,
             break;
 
         case Sphinx::VER_COMMAND_SEARCH_0_9_8:
-            response.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_8;
+        case Sphinx::VER_COMMAND_SEARCH_0_9_9:
+            //response.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_8;
+            response.commandVersion = responseVersion;
             parseResponse_v0_9_8(data, response);
             break;
 
         default:
             throw Sphinx::MessageError_t(
-                    "Invalid response version (0x101, 0x104, 0x113 supported).");
+                    "Invalid response version (0x101, 0x104, "
+                    "0x113, 0x116 supported).");
             break;
     }//switch
 }//konec fce

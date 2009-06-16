@@ -59,6 +59,7 @@ enum FilterType_t {
                   };
 
 
+typedef std::vector<uint64_t> Int64Array_t;
 typedef std::vector<uint32_t> IntArray_t;
 
 /** @brief Attribute filter base class 
@@ -93,8 +94,8 @@ struct RangeFilter_t : public Filter_t
     void dumpToBuff(Sphinx::Query_t &data,
                     const Sphinx::SearchCommandVersion_t &v) const;
 
-    uint32_t minValue;
-    uint32_t maxValue;
+    uint64_t minValue;
+    uint64_t maxValue;
 };
 
 /** @brief Attribute enum filter
@@ -105,12 +106,14 @@ struct RangeFilter_t : public Filter_t
 struct EnumFilter_t : public Filter_t {
 
 
+    EnumFilter_t(std::string attrName, const Int64Array_t &values,
+                 bool excludeFlag = false);
     EnumFilter_t(std::string attrName, const IntArray_t &values,
                  bool excludeFlag = false);
     void dumpToBuff(Sphinx::Query_t &data,
                     const Sphinx::SearchCommandVersion_t &v) const;
 
-    IntArray_t values;
+    Int64Array_t values;
 };
 
 /** @brief Attribute float range filter

@@ -87,19 +87,19 @@ void printResult(const Sphinx::Response_t &result)
          it != result.entry.end(); it++) {
 
         i++;
-        printf("%d) id: %ld ", i, it->documentId);
+        printf("%d) id: %ld", i, it->documentId);
         for (std::map<std::string, Sphinx::Value_t>::const_iterator j =
                             it->attribute.begin();
                 j != it->attribute.end() ; j++)
         {
             switch(j->second.getValueType()) {
             case Sphinx::VALUETYPE_FLOAT:
-                printf("%s:%.2f | ", j->first.c_str(), (float)(j->second));
+                printf(" | %s:%.2f", j->first.c_str(), (float)(j->second));
                 break;
             case Sphinx::VALUETYPE_VECTOR: {
                 char comma[2] = {'\0', '\0'};
                 std::vector<Sphinx::Value_t> vec = j->second;
-                printf("%s:(", j->first.c_str());
+                printf(" | %s:(", j->first.c_str());
                 for (std::vector<Sphinx::Value_t>::const_iterator vi=vec.begin() ; vi!=vec.end() ; vi++) {
                     if(vi->getValueType() == Sphinx::VALUETYPE_FLOAT)
                         printf("%s%ff", comma, (float)(*vi));
@@ -107,11 +107,11 @@ void printResult(const Sphinx::Response_t &result)
                         printf("%s%dd", comma, (uint32_t)(*vi));
                     comma[0] = ',';
                 }//for
-                printf(") | ");
+                printf(")");
                 break; }
             case Sphinx::VALUETYPE_UINT32:
             default:
-                printf("%s:%d | ", j->first.c_str(), (uint32_t)(j->second));
+                printf(" | %s:%d", j->first.c_str(), (uint32_t)(j->second));
                 break;
             }//switch
         }
@@ -143,7 +143,7 @@ int main()
     // search setup
     settings.msgOffset = 0;
     settings.msgLimit = 20;
-    settings.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_8;
+    settings.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_9;
     settings.matchMode = Sphinx::SPH_MATCH_ALL;
     settings.maxMatches = 1000;
     settings.indexes = "test1";

@@ -61,6 +61,7 @@ public:
     virtual operator uint32_t () const = 0;
     virtual operator const std::vector<Value_t>& () const = 0;
     virtual operator float () const = 0;
+    virtual operator uint64_t () const = 0;
 };//class
 
 
@@ -84,6 +85,10 @@ public:
         throw ValueTypeError_t("Value is of type uint32_t, "
                                "but requested is float");
     }//konec fce
+    virtual operator uint64_t () const {
+        throw ValueTypeError_t("Value is of type uint32_t, "
+                               "but requested is uint64_t");
+    }//konec fce
 };//class
 
 
@@ -105,6 +110,11 @@ public:
     virtual operator const std::vector<Value_t>& () const {
         throw ValueTypeError_t("Value is of type float, "
                                "but requested is std::vector");
+    }//konec fce
+
+    virtual operator uint64_t () const {
+        throw ValueTypeError_t("Value is of type float, "
+                               "but requested is uint64_t");
     }//konec fce
 
     virtual operator float () const { return value; }
@@ -133,6 +143,37 @@ public:
         throw ValueTypeError_t("Value is of type std::vector, "
                                "but requested type is float");
     }//konec fce
+
+    virtual operator uint64_t () const {
+        throw ValueTypeError_t("Value is of type std::vector, "
+                               "but requested is uint64_t");
+    }//konec fce
+};//class
+
+class ValueUInt64_t : public ValueBase_t
+{
+protected:
+    uint64_t value;
+
+public:
+    ValueUInt64_t(uint64_t val=0)
+        : ValueBase_t(VALUETYPE_UINT64), value(val) {}
+    ValueUInt64_t(const ValueUInt64_t &val)
+        : ValueBase_t(val), value(val.value) {}
+
+    virtual operator uint64_t () const { return value; }
+    virtual operator const std::vector<Value_t>& () const {
+        throw ValueTypeError_t("Value is of type uint64_t, "
+                               "but requested is std::vector");
+    }//konec fce
+    virtual operator float () const {
+        throw ValueTypeError_t("Value is of type uint64_t, "
+                               "but requested is float");
+    }//konec fce
+    virtual operator uint32_t () const {
+        throw ValueTypeError_t("Value is of type uint64_t, "
+                               "but requested is uint32_t");
+    }//konec fce
 };//class
 
 }//namespace
@@ -147,6 +188,7 @@ Value_t::Value_t(uint32_t v) : value(new ValueUInt32_t(v)) {}
 Value_t::Value_t(float v) : value(new ValueFloat_t(v)) {}
 Value_t::Value_t(const std::vector<Value_t> &v)
     : value(new ValueVector_t(v)) {}
+Value_t::Value_t(uint64_t v) : value(new ValueUInt64_t(v)) {}
 
 void Value_t::makeCopy(const Value_t &v)
 {
@@ -160,6 +202,9 @@ void Value_t::makeCopy(const Value_t &v)
                 break;
             case VALUETYPE_VECTOR:
                 value = new ValueVector_t(*(ValueVector_t*)v.value);
+                break;
+            case VALUETYPE_UINT64:
+                value = new ValueUInt64_t(*(ValueUInt64_t*)v.value);
                 break;
         }//switch
     }//if
@@ -200,3 +245,9 @@ Value_t::operator float () const throw (ValueTypeError_t)
 {
     return (float)(*value);
 }
+
+Value_t::operator uint64_t () const throw (ValueTypeError_t)
+{
+    return (uint64_t)(*value);
+}
+

@@ -117,7 +117,14 @@ enum RankingMode_t { //! @brief default mode, phrase proximity major factor and
                      SPH_RANK_NONE = 2,
                      //! @brief simple word-count weighting, rank is a weighted
                      //         sum of per-field keyword occurence counts
-                     SPH_RANK_WORDCOUNT = 3
+                     SPH_RANK_WORDCOUNT = 3,
+                     //! @brief only phrase procimity relevance
+                     SPH_RANK_PROXIMITY = 4,
+                     //! @brief matchAny mode relevance
+                     SPH_RANK_MATCHANY = 5,
+                     //! @brief relevance is 32bit mask with bit for each field
+                     //         set to 1 when a keyword is located there
+                     SPH_RANK_FIELDMASK = 6
                    };
 
 /** @brief Result attribute types
@@ -130,6 +137,7 @@ enum AttributeType_t { SPH_ATTR_INTEGER = 1,     //!< @brief int attribute type
                        SPH_ATTR_ORDINAL = 3,     //!< @brief 
                        SPH_ATTR_BOOL = 4,        //!< @brief boolean attribute
                        SPH_ATTR_FLOAT = 5,       //!< @brief float attribute
+                       SPH_ATTR_BIGINT = 6,      //!< @brief uint64 attribute
                        SPH_ATTR_MULTI = 0x40000000 }; //!< @brief
 
 /** @brief Grouping functions
@@ -196,26 +204,44 @@ struct GeoAnchorPoint_t {
 
 struct SearchConfig_t
 {
-    SearchConfig_t(SearchCommandVersion_t cmdVer = VER_COMMAND_SEARCH_0_9_8);
+    SearchConfig_t(SearchCommandVersion_t cmdVer = VER_COMMAND_SEARCH_0_9_9);
 
     /** @brief Adds range attribute filter to search config
       * 
       * @param excludeFlag invert filter (use values outside spcified range)
-      */  
-    void addRangeFilter(std::string attrName, uint32_t minValue,
-                  uint32_t maxValue, bool excludeFlag=false);
+      */
+    void addRangeFilter(std::string attrName, uint64_t minValue,
+                  uint64_t maxValue, bool excludeFlag=false);
     /** @brief Adds enumeration filter to search config
       * 
       * @param excludeFlag invert filter (use all values except enumerated)
-      */  
-    void addEnumFilter(std::string attrName, const IntArray_t &values,
+      */
+    void addEnumFilter(std::string attrName, const Int64Array_t &values,
                   bool excludeFlag=false);
     /** @brief Adds float range attribute filter to search config
       * 
       * @param excludeFlag invert filter (use values outside spcified range)
-      */  
+      */
     void addFloatRangeFilter(std::string attrName, float minValue,
                    float maxValue, bool excludeFlag=false);
+
+    /** @brief Attribute value override for specified document.
+     *  @param attrName name of attribute to override
+     *  @param attrType overriden attribute type
+     *  @param docId document id where to override the attribute
+     *  @param value new value of the attribute
+     */
+    void addAttributeOverride(const std::string &attrName,
+                              AttributeType_t attrType,
+                              uint64_t docId, const Value_t &value);
+    /** @brief Attribute value override for specified documents.
+     *  @param attrName name of attribute to override
+     *  @param attrType overriden attribute type
+     *  @param values values of specified attribute by document IDs
+     */
+    void addAttributeOverride(const std::string &attrName,
+                              AttributeType_t attrType,
+                              const std::map<uint64_t, Value_t> &values);
 
     uint32_t msgOffset; //!< @brief specifies, how many matches to skip
     uint32_t msgLimit;  //!< @brief specifies, how many matches to fetch
@@ -264,7 +290,7 @@ struct SearchConfig_t
     std::string groupSort; //!< $brief group-by sorting clause (to sort groups in result set with)
     std::vector<Filter_t *> filters; //!< $brief array to hold attribute filter (range, enum)
 
-    //! @brief Command version - allowed values are 0x101, 0x104, 0x107 and 0x113
+    //! @brief Command version - allowed values are 0x101, 0x104, 0x107, 0x113, 0x116
     SearchCommandVersion_t commandVersion;
     //! @brief Index file names to search in
     std::string indexes;
@@ -288,6 +314,15 @@ struct SearchConfig_t
     std::map<std::string, uint32_t> fieldWeights;
     //! @brief query comment
     std::string queryComment;
+
+    //----- od verze query 116 -----
+    //! @brief select columns to fetch in SQL-like select syntax. Available
+    //         aggregation functions are MIN, MAX, SUM, AVG. AS is required
+    std::string selectClause;
+    //! @brief attribute overrides - map attrName->(attrType, map docId->attrValue)
+    std::map<std::string,
+             std::pair<AttributeType_t, std::map<uint64_t, Value_t> > >
+                 attributeOverrides;
 };
 
 // ------------------------ Client_t -----------------------

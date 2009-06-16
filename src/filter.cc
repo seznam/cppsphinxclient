@@ -72,6 +72,14 @@ void Sphinx::RangeFilter_t::dumpToBuff(Sphinx::Query_t &data,
             data << (uint32_t) excludeFlag;
             break;
 
+        case VER_COMMAND_SEARCH_0_9_9:
+            data << attrName;
+            data << (uint32_t) SPH_FILTER_RANGE
+                 << (uint64_t) minValue
+                 << (uint64_t) maxValue;
+            data << (uint32_t) excludeFlag;
+            break;
+
         default:
             //incompatible modes
             break;
@@ -79,12 +87,27 @@ void Sphinx::RangeFilter_t::dumpToBuff(Sphinx::Query_t &data,
 }
 
 Sphinx::EnumFilter_t::EnumFilter_t(std::string attrName,
-                                   const IntArray_t &values,
+                                   const Int64Array_t &values,
                                    bool excludeFlag)
         : values(values)
 {
         this->attrName = attrName;
         this->excludeFlag = excludeFlag;
+}
+
+Sphinx::EnumFilter_t::EnumFilter_t(std::string attrName,
+                                   const IntArray_t &nvalues,
+                                   bool excludeFlag)
+{
+    values.clear();
+    for(IntArray_t::const_iterator valI = nvalues.begin() ; valI!=nvalues.end();
+        ++valI)
+    {
+        values.push_back(*valI);
+    }//for
+
+    this->attrName = attrName;
+    this->excludeFlag = excludeFlag;
 }
 
 void Sphinx::EnumFilter_t::dumpToBuff(Sphinx::Query_t &data,
@@ -94,7 +117,7 @@ void Sphinx::EnumFilter_t::dumpToBuff(Sphinx::Query_t &data,
         case VER_COMMAND_SEARCH_0_9_7_1:
             data << attrName;
             data << (uint32_t) values.size();
-            for (Sphinx::IntArray_t::const_iterator val = values.begin();
+            for (Sphinx::Int64Array_t::const_iterator val = values.begin();
                  val != values.end(); val++)
             {
                 data << (uint32_t)(*val);
@@ -106,10 +129,22 @@ void Sphinx::EnumFilter_t::dumpToBuff(Sphinx::Query_t &data,
             data << attrName;
             data << (uint32_t) SPH_FILTER_VALUES;
             data << (uint32_t) values.size();
-            for (Sphinx::IntArray_t::const_iterator val = values.begin();
+            for (Sphinx::Int64Array_t::const_iterator val = values.begin();
                  val != values.end(); val++)
             {
                 data << (uint32_t)(*val);
+            }
+            data << (uint32_t) excludeFlag;
+            break;
+
+        case VER_COMMAND_SEARCH_0_9_9:
+            data << attrName;
+            data << (uint32_t) SPH_FILTER_VALUES;
+            data << (uint32_t) values.size();
+            for (Sphinx::Int64Array_t::const_iterator val = values.begin();
+                 val != values.end(); val++)
+            {
+                data << (uint64_t)(*val);
             }
             data << (uint32_t) excludeFlag;
             break;

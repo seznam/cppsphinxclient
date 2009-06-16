@@ -62,8 +62,7 @@ int main()
     // search settings
     settings.msgOffset = 0;
     settings.msgLimit = 20;
-    //settings.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_7_1;
-    settings.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_8;
+    settings.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_9;
     settings.matchMode = Sphinx::SPH_MATCH_ALL;
     settings.maxMatches = 1000;
     settings.indexes = "test1";
@@ -71,7 +70,7 @@ int main()
     settings.maxQueryTime = 10000;
 
     // preparation of enumeration filter
-    Sphinx::IntArray_t ids;
+    Sphinx::Int64Array_t ids;
     ids.push_back(23);
     ids.push_back(10);
 
