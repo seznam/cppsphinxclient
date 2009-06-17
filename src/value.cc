@@ -42,26 +42,46 @@
 
 namespace Sphinx {
 
+/** @brief string names of attribute types
+ */
+static const char *valueTypeString[] = {
+    "uint32_t",
+    "float",
+    "std::vector<Value_t>",
+    "uint64_t"
+};
 
-/** @brief Abstract class, representing value data
+/** @brief Class, representing value data. Can't be constructed as is;
  */
 class ValueBase_t
 {
 protected:
     ValueType_t type;
 
-public:
     ValueBase_t(ValueType_t t) : type(t) {}
     ValueBase_t(const ValueBase_t &v) : type(v.type) {}
 
+public:
     virtual ~ValueBase_t() {}
 
     inline ValueType_t getType() { return type; }
 
-    virtual operator uint32_t () const = 0;
-    virtual operator const std::vector<Value_t>& () const = 0;
-    virtual operator float () const = 0;
-    virtual operator uint64_t () const = 0;
+    virtual operator uint32_t () const {
+        throw ValueTypeError_t(std::string("Value is of type ")
+                + valueTypeString[type] + " but requested is uint32_t.");
+    }
+    virtual operator const std::vector<Value_t>& () const {
+        throw ValueTypeError_t(std::string("Value is of type ")
+                + valueTypeString[type] + " but requested is std::vector.");
+    }
+    virtual operator float () const {
+        throw ValueTypeError_t(std::string("Value is of type ")
+                + valueTypeString[type] + " but requested is float.");
+    }
+    virtual operator uint64_t () const {
+        throw ValueTypeError_t(std::string("Value is of type ")
+                + valueTypeString[type] + " but requested is uint64_t.");
+    }
 };//class
 
 
@@ -77,18 +97,6 @@ public:
         : ValueBase_t(val), value(val.value) {}
 
     virtual operator uint32_t () const { return value; }
-    virtual operator const std::vector<Value_t>& () const {
-        throw ValueTypeError_t("Value is of type uint32_t, "
-                               "but requested is std::vector");
-    }//konec fce
-    virtual operator float () const {
-        throw ValueTypeError_t("Value is of type uint32_t, "
-                               "but requested is float");
-    }//konec fce
-    virtual operator uint64_t () const {
-        throw ValueTypeError_t("Value is of type uint32_t, "
-                               "but requested is uint64_t");
-    }//konec fce
 };//class
 
 
@@ -101,21 +109,6 @@ public:
     ValueFloat_t(float val=0.0f) : ValueBase_t(VALUETYPE_FLOAT), value(val) {}
     ValueFloat_t(const ValueFloat_t &val)
         : ValueBase_t(val), value(val.value) {}
-
-    virtual operator uint32_t () const {
-        throw ValueTypeError_t("Value is of type float, "
-                               "but requested is uint32_t");
-    }//konec fce
-
-    virtual operator const std::vector<Value_t>& () const {
-        throw ValueTypeError_t("Value is of type float, "
-                               "but requested is std::vector");
-    }//konec fce
-
-    virtual operator uint64_t () const {
-        throw ValueTypeError_t("Value is of type float, "
-                               "but requested is uint64_t");
-    }//konec fce
 
     virtual operator float () const { return value; }
 };//class
@@ -132,22 +125,7 @@ public:
     ValueVector_t(const ValueVector_t &val)
         : ValueBase_t(val), value(val.value) {}
 
-    virtual operator uint32_t () const {
-        throw ValueTypeError_t("Value is of type std::vector, "
-                               "but requested is uint32_t");
-    }//konec fce
-
     virtual operator const std::vector<Value_t>& () const { return value; }
-
-    virtual operator float () const {
-        throw ValueTypeError_t("Value is of type std::vector, "
-                               "but requested type is float");
-    }//konec fce
-
-    virtual operator uint64_t () const {
-        throw ValueTypeError_t("Value is of type std::vector, "
-                               "but requested is uint64_t");
-    }//konec fce
 };//class
 
 class ValueUInt64_t : public ValueBase_t
@@ -162,18 +140,6 @@ public:
         : ValueBase_t(val), value(val.value) {}
 
     virtual operator uint64_t () const { return value; }
-    virtual operator const std::vector<Value_t>& () const {
-        throw ValueTypeError_t("Value is of type uint64_t, "
-                               "but requested is std::vector");
-    }//konec fce
-    virtual operator float () const {
-        throw ValueTypeError_t("Value is of type uint64_t, "
-                               "but requested is float");
-    }//konec fce
-    virtual operator uint32_t () const {
-        throw ValueTypeError_t("Value is of type uint64_t, "
-                               "but requested is uint32_t");
-    }//konec fce
 };//class
 
 }//namespace

@@ -7,26 +7,27 @@ create table data (
     att_group integer unsigned not null,
     att_timestamp timestamp not null,
     att_bool bool not null,
+    att_bigint bigint unsigned not null default 0,
     primary key(id)
 );
 
 
 
-insert into data values (1, 'ahoj cece',  'popisek pes kocka morce', 0.5, 10, 5, unix_timestamp(NOW()), true);
-insert into data values (2, 'ahoj bla',   'popisek pes kocka morce', 1.4, 45, 5, unix_timestamp(NOW()), false);
-insert into data values (3, 'ahoj xxx',   'pes kocka morce',         2.3, 67, 5, unix_timestamp(NOW()), true);
-insert into data values (4, 'ahoj iii',   'popisek kocka morce',     3.5, 34, 5, unix_timestamp(NOW()), false);
-insert into data values (5, 'ahoj prd',   'popisek pes kocka',       4.1, 23, 5, unix_timestamp(NOW()), true);
-insert into data values (6, 'ahoj ble',   'popisek pes morce',       5.2, 62, 5, unix_timestamp(NOW()), true);
-insert into data values (7, 'ahoj www',   'popisek kocka morce',     6.3, 56, 5, unix_timestamp(NOW()), false);
-insert into data values (8, 'ahoj zzz',   'popisek pes kocka ',      7.4, 67, 6, unix_timestamp(NOW()), true);
-insert into data values (9, 'ahoj cvasr', 'pes kocka morce',         8.5, 23, 6, unix_timestamp(NOW()), true);
-insert into data values (10, 'ahoj fawe', 'popisek kocka morce',     9.6, 98, 6, unix_timestamp(NOW()), false);
-insert into data values (11, 'ahoj bqrh', 'pes kocka morce',         0.7, 45, 6, unix_timestamp(NOW()), true);
-insert into data values (12, 'ahoj mcaos', 'popisek pes',            1.8, 23, 7, unix_timestamp(NOW()), true);
-insert into data values (13, 'ahoj bapjr', 'popisek morce',          2.9, 12, 7, unix_timestamp(NOW()), false);
-insert into data values (14, 'ahoj v;la', 'popisek kocka',           3.0, 56, 7, unix_timestamp(NOW()), false);
-insert into data values (15, 'ahoj dddd', 'morce',                   4.5, 10, 7, unix_timestamp(NOW()), true);
+insert into data values (1, 'ahoj cece',  'popisek pes kocka morce', 0.5, 10, 5, unix_timestamp(NOW()), true, 987);
+insert into data values (2, 'ahoj bla',   'popisek pes kocka morce', 1.4, 45, 5, unix_timestamp(NOW()), false, 986);
+insert into data values (3, 'ahoj xxx',   'pes kocka morce',         2.3, 67, 5, unix_timestamp(NOW()), true, 985);
+insert into data values (4, 'ahoj iii',   'popisek kocka morce',     3.5, 34, 5, unix_timestamp(NOW()), false, 984);
+insert into data values (5, 'ahoj prd',   'popisek pes kocka',       4.1, 23, 5, unix_timestamp(NOW()), true, 983);
+insert into data values (6, 'ahoj ble',   'popisek pes morce',       5.2, 62, 5, unix_timestamp(NOW()), true, 982);
+insert into data values (7, 'ahoj www',   'popisek kocka morce',     6.3, 56, 5, unix_timestamp(NOW()), false, 981);
+insert into data values (8, 'ahoj zzz',   'popisek pes kocka ',      7.4, 67, 6, unix_timestamp(NOW()), true, 980);
+insert into data values (9, 'ahoj cvasr', 'pes kocka morce',         8.5, 23, 6, unix_timestamp(NOW()), true, 979);
+insert into data values (10, 'ahoj fawe', 'popisek kocka morce',     9.6, 98, 6, unix_timestamp(NOW()), false, 978);
+insert into data values (11, 'ahoj bqrh', 'pes kocka morce',         0.7, 45, 6, unix_timestamp(NOW()), true, 977);
+insert into data values (12, 'ahoj mcaos', 'popisek pes',            1.8, 23, 7, unix_timestamp(NOW()), true, 976);
+insert into data values (13, 'ahoj bapjr', 'popisek morce',          2.9, 12, 7, unix_timestamp(NOW()), false, 975);
+insert into data values (14, 'ahoj v;la', 'popisek kocka',           3.0, 56, 7, unix_timestamp(NOW()), false, 974);
+insert into data values (15, 'ahoj dddd', 'morce',                   4.5, 10, 7, unix_timestamp(NOW()), true, 973);
 
 create table multi_attribute_data (
     data_id int unsigned not null default 0,

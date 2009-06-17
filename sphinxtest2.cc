@@ -109,6 +109,9 @@ void printResult(const Sphinx::Response_t &result)
                 }//for
                 printf(")");
                 break; }
+            case Sphinx::VALUETYPE_UINT64:
+                printf("%s:%lu | ", j->first.c_str(), (uint64_t)(j->second));
+                break;
             case Sphinx::VALUETYPE_UINT32:
             default:
                 printf(" | %s:%d", j->first.c_str(), (uint32_t)(j->second));

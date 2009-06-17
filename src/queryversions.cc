@@ -481,6 +481,7 @@ void buildQuery_v0_9_9(const std::string &query,
     int32_t overrideCount - TODO pridano v 0.9.9
         {
         string attrName
+        int32_t attrType
         int32_t documentCount
             {
                 int64_t docId
@@ -603,8 +604,42 @@ void buildQuery_v0_9_9(const std::string &query,
     //query comment
     data << attrs.queryComment;
 
-    //attribute overrides - TODO, now just zero count
-    data << (uint32_t) 0;
+    //attribute overrides
+    data << (uint32_t) attrs.attributeOverrides.size();
+
+    std::map<std::string,
+             std::pair<Sphinx::AttributeType_t,
+                       std::map<uint64_t, Sphinx::Value_t> > >
+                 :: const_iterator ovrI = attrs.attributeOverrides.begin();
+
+    for ( ; ovrI != attrs.attributeOverrides.end() ; ++ovrI) {
+        // attribute name and type, count of docs overridden
+        data << ovrI->first;
+        data << (uint32_t) ovrI->second.first;
+        data << (uint32_t) ovrI->second.second.size();
+
+        // docs overridden
+        for (std::map<uint64_t, Sphinx::Value_t>::const_iterator dI
+                = ovrI->second.second.begin() ;
+                dI != ovrI->second.second.end() ; ++dI)
+        {
+            // document id
+            data << dI->first;
+            //value
+            switch (dI->second.getValueType()) {
+                case Sphinx::VALUETYPE_UINT32:
+                    data << (uint32_t) dI->second; break;
+                case Sphinx::VALUETYPE_FLOAT:
+                    data << (float) dI->second; break;
+                case Sphinx::VALUETYPE_UINT64:
+                    data << (uint64_t) dI->second; break;
+                case Sphinx::VALUETYPE_VECTOR:
+                default:
+                    throw Sphinx::ClientUsageError_t("Attributes with some "
+                            "value types (such as vector) can't be overriden.");
+            }//switch
+        }//for documents
+    }//for attributes
 
     //select clause
     data << attrs.selectClause;
@@ -954,7 +989,6 @@ void parseResponseVersion(Sphinx::Query_t &data,
 
         case Sphinx::VER_COMMAND_SEARCH_0_9_8:
         case Sphinx::VER_COMMAND_SEARCH_0_9_9:
-            //response.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_8;
             response.commandVersion = responseVersion;
             parseResponse_v0_9_8(data, response);
             break;
