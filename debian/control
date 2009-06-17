@@ -1,0 +1,20 @@
+Source: libsphinxclient
+Priority: extra
+Maintainer: Jan Kirschner <jan.kirschner@firma.seznam.cz>
+Build-Depends: debhelper (>= 7), autotools-dev
+Standards-Version: 3.7.3
+Section: libs
+Homepage: http://cppsphinxclient.sourceforge.net
+
+Package: libsphinxclient-dev
+Section: libdevel
+Architecture: any
+Depends: libsphinxclient4 (= ${binary:Version})
+Description: C++ sphinx search client library development files.
+
+Package: libsphinxclient4
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: C++ sphinx search client library
+ This library provides C++ interface to sphinx search binary protocol.

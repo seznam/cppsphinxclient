@@ -38,6 +38,19 @@
 SUBDIRS = src include
 
 # debian packaging scripts
-EXTRA_DIST = debian/libsphinxclient.control debian/libsphinxclient.postinst \
-             debian/libsphinxclient-dev.control \
-             debian/make.sh
+EXTRA_DIST = test/testdata.sql doc/Doxyfile
+
+noinst_PROGRAMS = sphinxtest sphinxtest2 keywordstest
+
+# path to includes
+AM_CPPFLAGS = -I ./include
+
+sphinxtest_SOURCES = sphinxtest.cc
+sphinxtest_LDADD = src/libsphinxclient.la
+
+sphinxtest2_SOURCES = sphinxtest2.cc
+sphinxtest2_LDADD = src/libsphinxclient.la
+
+keywordstest_SOURCES = keywordstest.cc
+keywordstest_LDADD = src/libsphinxclient.la
+
