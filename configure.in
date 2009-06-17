@@ -36,7 +36,7 @@
 
 
 # initialize autoconf
-AC_INIT(sphinxclient, 1.3.0, jan.kirschner@firma.seznam.cz)
+AC_INIT(sphinxclient, 1.3.1, jan.kirschner@firma.seznam.cz)
 # initialize automake(use AC_INIT's arguments)
 AM_INIT_AUTOMAKE(-Wall foreign)
 

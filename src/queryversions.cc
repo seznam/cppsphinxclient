@@ -881,6 +881,11 @@ void parseResponse_v0_9_8(Sphinx::Query_t &data, Sphinx::Response_t &response)
                 data >> value;
                 //doesn't matter, Value_t has conversion constructor from float
                 entry.attribute.insert(std::make_pair(attr->first, value));
+            } else if (attr->second == Sphinx::SPH_ATTR_BIGINT) {
+                // process uint64_t attributes
+                uint64_t value;
+                data >> value;
+                entry.attribute.insert(std::make_pair(attr->first, value));
             } else {
                 //process uint32_t and vector attributes
                 uint32_t value;

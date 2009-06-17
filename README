@@ -1,0 +1,51 @@
+
+Help on actions:
+-------------------
+
+* Compile and install
+* Build debian package
+* Make documentation
+* Add entry to changelog
+
+
+Compile and install
+-------------------
+    To build libsphinxclient and install it to your system from source
+    distribution run following commands from the topmost directory
+    of sphinxclient.
+
+        # autoreconf --install
+        # ./configure
+        # make clean
+        # make
+        # make install
+
+
+Build debian package
+--------------------
+
+    In the topmost directory run these comamnds:
+
+        # autoreconf --install
+        # dpkg-buildpackage -rfakeroot
+
+    The distribution packages are placed in parent directory (cd ..)
+
+
+Make documentation
+------------------
+
+    To make documentation, you must have doxygen installed. Then, you can run
+
+        # ./make-documentation.sh
+
+    in the topmost directory. The result can be found in ./doc directory.
+
+
+Add entry to changelog
+----------------------
+
+    # dch -v <release version>-<revision>
+
+    Then edit the entry in changelog.
+
