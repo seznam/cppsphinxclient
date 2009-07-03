@@ -218,6 +218,12 @@ struct SearchConfig_t
       */
     void addEnumFilter(std::string attrName, const Int64Array_t &values,
                   bool excludeFlag=false);
+    /** @brief Adds enumeration filter to search config
+      * 
+      * @param excludeFlag invert filter (use all values except enumerated)
+      */
+    void addEnumFilter(std::string attrName, const IntArray_t &values,
+                  bool excludeFlag=false);
     /** @brief Adds float range attribute filter to search config
       * 
       * @param excludeFlag invert filter (use values outside spcified range)

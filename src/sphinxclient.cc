@@ -167,6 +167,14 @@ void Sphinx::SearchConfig_t::addEnumFilter(std::string attrName,
                                          excludeFlag));
 }
 
+void Sphinx::SearchConfig_t::addEnumFilter(std::string attrName,
+                                      const IntArray_t &values,
+                                      bool excludeFlag)
+{
+    this->filters.push_back(new EnumFilter_t(attrName, values,
+                                         excludeFlag));
+}
+
 void Sphinx::SearchConfig_t::addFloatRangeFilter(std::string attrName,
     float minValue, float maxValue, bool excludeFlag)
 {
