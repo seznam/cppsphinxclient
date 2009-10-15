@@ -339,7 +339,13 @@ void Query_t::read(int socket_d, int bytesToRead, Client_t &connection,
             if (errno == EINTR) {
                 // interrupted - try again
                 continue;
+            } else if (errno == EINPROGRESS) {
+                // blocking operation still in progress, try again after
+                // a few microsecs
+                usleep(10);
+                continue;
             }
+
             throw Sphinx::ConnectionError_t(
                 strError("recv error"));
         }
