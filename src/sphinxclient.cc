@@ -557,8 +557,12 @@ void Sphinx::Client_t::sendData(const Query_t &buff)
     unsigned int bytesSent=buff.dataStartPtr;
 
     do {
+        errno = 0;
         result = send(socket_d, buff.data + bytesSent,
                       buff.dataEndPtr - bytesSent, 0);
+
+        if (result <= 0 && errno == EAGAIN)
+            continue;
 
         if (result <= 0)
             throw Sphinx::ConnectionError_t(
