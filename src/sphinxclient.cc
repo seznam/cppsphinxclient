@@ -50,6 +50,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <netdb.h>
+#include <poll.h>
 
 #include <stdarg.h>
 
@@ -463,21 +464,13 @@ void Sphinx::Client_t::close()
 
 void Sphinx::Client_t::waitSocketReadable(const std::string &stage) {
 
-    struct timeval tstruct, *ptstruct;
-    fd_set rfds;
     int ready;
+    struct pollfd fd;
 
-    // descriptor set
-    FD_ZERO(&rfds);
-    FD_SET(socket_d, &rfds);
+    fd.fd = socket_d;
+    fd.events = POLLIN;
 
-    // create timeout
-    tstruct.tv_sec = connection.readTimeout/1000;
-    tstruct.tv_usec = (connection.readTimeout % 1000) * 1000;
-    ptstruct = (connection.readTimeout<0) ? NULL : &tstruct;
-
-    while ((ready = ::select(socket_d + 1, &rfds, NULL, NULL, ptstruct)) <= 0)
-    {
+    while ((ready = poll(&fd, 1, connection.readTimeout)) <= 0){
         //no data available or other error
         if (ready == 0) {
             // read timeout expired
@@ -485,14 +478,13 @@ void Sphinx::Client_t::waitSocketReadable(const std::string &stage) {
                 stage +
                 std::string("::Error reading response (read timeout expired)"));
         } else if (ready < 0) {
-            // EINTR - select was interrupted, restart select
+            // EINTR - poll was interrupted, restart select
             if (errno == EINTR) continue;
             throw Sphinx::ConnectionError_t(
                 stage +
                 strError("::Error reading response while selecting"));
         }
     }
-    // ready to read here
 }
 
 int Sphinx::Client_t::receiveResponse(Query_t &buff, unsigned short &version)
