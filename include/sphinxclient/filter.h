@@ -43,6 +43,7 @@
 
 #include <sphinxclient/sphinxclientquery.h>
 #include <sphinxclient/globals_public.h>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -76,6 +77,22 @@ struct Filter_t
 
     virtual void dumpToBuff(Sphinx::Query_t &data,
                             const Sphinx::SearchCommandVersion_t &v) const = 0;
+
+    /* @brief print current 
+     *
+     *
+     */
+    virtual std::ostream & print(std::ostream &o) const = 0;
+
+    friend std::ostream & operator<< (std::ostream &o,
+                                      const Filter_t &f);
+
+    /** @brief make new object as a deep copy of current
+      * @return pointer to the newly created object
+      */
+    virtual Filter_t * clone() const = 0;
+
+       
     virtual ~Filter_t() {};
 
     std::string attrName;
@@ -93,6 +110,8 @@ struct RangeFilter_t : public Filter_t
                   uint32_t maxValue, bool excludeFlag=false);
     void dumpToBuff(Sphinx::Query_t &data,
                     const Sphinx::SearchCommandVersion_t &v) const;
+    virtual std::ostream & print(std::ostream &o) const;
+    virtual Filter_t * clone() const;
 
     uint64_t minValue;
     uint64_t maxValue;
@@ -112,6 +131,8 @@ struct EnumFilter_t : public Filter_t {
                  bool excludeFlag = false);
     void dumpToBuff(Sphinx::Query_t &data,
                     const Sphinx::SearchCommandVersion_t &v) const;
+    virtual std::ostream & print(std::ostream &o) const;
+    virtual Filter_t * clone() const;
 
     Int64Array_t values;
 };
@@ -123,11 +144,12 @@ struct EnumFilter_t : public Filter_t {
   */ 
 struct FloatRangeFilter_t : public Filter_t {
 
-
     FloatRangeFilter_t(std::string attrName, float minValue, float maxValue,
                  bool excludeFlag = false);
     void dumpToBuff(Sphinx::Query_t &data,
                     const Sphinx::SearchCommandVersion_t &v) const;
+    virtual std::ostream & print(std::ostream &o) const;
+    virtual Filter_t * clone() const;
 
     float minValue;
     float maxValue;

@@ -61,12 +61,14 @@ AC_PROG_LIBTOOL
 VERSION_INFO="-version-info 4:0:0"
 AC_SUBST(VERSION_INFO)
 
-AC_CHECK_HEADERS([fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h sys/file.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h sys/file.h sys/socket.h sys/time.h unistd.h time.h])
 AC_CHECK_HEADER(netdb.h, , AC_MSG_ERROR([netdb.h header missing], 1))
 AC_CHECK_HEADER(netinet/in.h, , AC_MSG_ERROR([in.h header missing], 1))
 AC_CHECK_HEADER(sys/socket.h, , AC_MSG_ERROR([socket.h header missing], 1))
 AC_CHECK_HEADER(stdlib.h, , AC_MSG_ERROR([Standart C header missing], 1))
 AC_CHECK_HEADER(unistd.h, , AC_MSG_ERROR([Standart unix header missing], 1))
+
+AC_CHECK_LIB(rt, clock_gettime)
 
 # generate Makefile
 AC_OUTPUT(version Makefile src/Makefile include/Makefile include/sphinxclient/Makefile)

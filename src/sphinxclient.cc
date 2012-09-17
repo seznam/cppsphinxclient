@@ -43,6 +43,7 @@
 #include <sphinxclient/globals.h>
 
 #include <sstream>
+#include <algorithm>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -59,8 +60,15 @@
 #endif
 #include <unistd.h>
 
+#include "querymachine.h"
+#include "timer.h"
+        
+
 //------------------------------------------------------------------------------
 
+// TODO - move to ConnectionConfig_t and make it configurable
+// (will break binary compatibility)
+#define DEFAULT_CONNECT_RETRIES 1
 
 //------------------------------------------------------------------------------
 // query version handlers declarations
@@ -151,6 +159,75 @@ Sphinx::SearchConfig_t::SearchConfig_t(SearchCommandVersion_t cmdVer):
     searchCutOff(0), distRetryCount(0), distRetryDelay(0), maxQueryTime(0),
     selectClause("*")
 {}
+
+
+Sphinx::SearchConfig_t::SearchConfig_t(const Sphinx::SearchConfig_t &from)
+{
+    makeCopy(from);
+}
+
+
+Sphinx::SearchConfig_t &Sphinx::SearchConfig_t::operator= (
+    const Sphinx::SearchConfig_t &from)
+{
+    if (&from != this) {
+        makeCopy(from);
+    }
+    return *this;
+}
+
+void Sphinx::SearchConfig_t::makeCopy(const Sphinx::SearchConfig_t &from) 
+{
+    msgOffset = from.msgOffset;
+    msgLimit = from.msgLimit;
+    minId = from.minId;
+    maxId = from.maxId;
+    minTimestamp = from.minTimestamp;
+    maxTimestamp = from.maxTimestamp;
+    minGroupId = from.minGroupId;
+    maxGroupId = from.maxGroupId;
+    matchMode = from.matchMode;
+    sortMode = from.sortMode;
+    rankingMode = from.rankingMode;
+    weights = from.weights;
+    groups = from.groups;
+    sortBy = from.sortBy;
+    minValue = from.minValue;
+    maxValue = from.maxValue;
+    filter = from.filter;
+    groupBy = from.groupBy;
+    groupFunction = from.groupFunction;
+    maxMatches = from.maxMatches;
+    groupSort = from.groupSort;
+    commandVersion = from.commandVersion;
+    indexes = from.indexes;
+    searchCutOff = from.searchCutOff;
+    distRetryCount = from.distRetryCount;
+    distRetryDelay = from.distRetryDelay;
+    groupDistinctAttribute = from.groupDistinctAttribute;
+    anchorPoints = from.anchorPoints;
+    indexWeights = from.indexWeights;
+    maxQueryTime = from.maxQueryTime;
+    fieldWeights = from.fieldWeights;
+    queryComment = from.queryComment;
+    selectClause = from.selectClause;
+    attributeOverrides = from.attributeOverrides;
+    /* handle filters*/
+    for (std::vector<Filter_t *>::const_iterator i = from.filters.begin();
+        i != from.filters.end(); i++)
+    {
+        filters.push_back((*i)->clone());
+    }
+}
+
+Sphinx::SearchConfig_t::~SearchConfig_t() {
+    // handle filters
+    for (std::vector<Filter_t *>::const_iterator i = filters.begin();
+        i != filters.end(); i++)
+    {
+        delete *i;
+    }
+}
 
 void Sphinx::SearchConfig_t::addRangeFilter(std::string attrName, uint64_t minValue,
                                        uint64_t maxValue,
@@ -609,6 +686,196 @@ Sphinx::SearchCommandVersion_t Sphinx::MultiQuery_t::getCommandVersion() const {
 
 //-------------------------------------------------------------------------
 
+Sphinx::MultiQueryOpt_t::MultiQueryOpt_t(SearchCommandVersion_t cv)
+    : commandVersion(cv)
+{}//konec fce
+
+void Sphinx::MultiQueryOpt_t::initQuery(SearchCommandVersion_t cv)
+{
+    commandVersion = cv;
+
+    sortedQueries.clear();
+    sourceQueries.clear();
+    responseIndex.clear();
+    groupQueries.clear();
+
+}//konec fce
+
+
+void Sphinx::MultiQueryOpt_t::addQuery(const std::string& query,
+                                    const SearchConfig_t &queryAttr)
+{
+    // query attr command version must match query command version
+    if(commandVersion != queryAttr.commandVersion)
+        throw ClientUsageError_t("multiQuery version does not match "
+                                 "added query version.");
+
+
+    size_t queryCount = sourceQueries.size();
+    // fill source queries
+    sourceQueries.push_back(SourceQuery_t(query, queryAttr, queryCount));
+
+    // fill sorted queries
+    sortedQueries.push_back(&sourceQueries.back());
+
+    // fill response index
+    responseIndex.push_back(std::pair<int,int>(queryCount, queryCount));
+
+    // fill groupQueries
+    if (groupQueries.size()) {
+        groupQueries[0] = 0;
+    } else {
+        groupQueries.push_back(0);
+    }
+
+    // increase query count
+    queryCount++;
+}//konec fce
+
+Sphinx::Query_t Sphinx::MultiQueryOpt_t::getGroupQuery(size_t i) const
+{
+    Sphinx::Query_t out;
+    out.convertEndian = true;
+
+
+    size_t queryCount = getQueryCountAtGroup(i);
+    //printf("Getting group query %lu, subquery count=%lu\n", i, queryCount);
+    int start = groupQueries[i];
+    int end = start + queryCount;
+    //printf("index into sorted queries: Start: %d, end: %d\n", start, end); 
+    // concatenate queries into group
+    for (int j = start; j < end; j++) {
+        /*printf("sortedQueries[%d]: filters: %s, query addr=%p data=%p\n", j,
+                sortedQueries[j]->getHash().c_str(),
+                sortedQueries[j],
+                sortedQueries[j]->getQuery().data);
+        */
+        out << sortedQueries[j]->getQuery();
+    }
+    return out;
+}
+
+size_t Sphinx::MultiQueryOpt_t::getGroupQueryCount() const
+{
+    return groupQueries.size();
+}
+
+
+size_t Sphinx::MultiQueryOpt_t::getResponseIndex(size_t sortedIndex) const
+{
+    return responseIndex[sortedIndex].second;
+}
+
+
+size_t Sphinx::MultiQueryOpt_t::getQueryCountAtGroup(size_t i) const
+{
+    if (i >= groupQueries.size()) {
+        std::ostringstream o;
+        o << i << " >= " << groupQueries.size();
+        throw ClientUsageError_t("Group query index out of range: " + o.str());
+    }
+    int start = groupQueries[i];
+    int end;
+    if (i+1 >= groupQueries.size())
+    {
+        // last
+        end = sortedQueries.size();
+    } else 
+    {
+        end = groupQueries[i+1];
+    }
+    return end-start;
+}
+
+struct QuerySorter_t {
+    bool operator()(const Sphinx::SourceQuery_t *lhs,
+                    const Sphinx::SourceQuery_t *rhs)
+    {
+        return lhs->getHash() < rhs->getHash();
+    }
+};
+
+
+void Sphinx::MultiQueryOpt_t::optimise() {
+
+    // disable optimisation for older protocols
+    if (commandVersion < VER_COMMAND_SEARCH_0_9_8) {
+        //printf("optimisation disabled, old command version\n");
+        return;
+    }
+    //printf("optimisation enabled\n");
+
+    //printf("going to sort sorted queries ...\n");
+    // sort queries by hash
+    std::sort(sortedQueries.begin(), sortedQueries.end(), QuerySorter_t());
+    //printf("sorting done.\n");
+
+    // build response index and groupQueries
+    responseIndex.clear();
+    groupQueries.clear();
+    // fill from sortedQueries
+    int seqNo = 0;
+    std::string lastHash;
+
+    for (std::vector<const SourceQuery_t *>::const_iterator i
+            = sortedQueries.begin(); i != sortedQueries.end(); i++)
+    {
+        // build response index
+        responseIndex.push_back(std::pair<int,int>(seqNo,
+                                                   (*i)->getInputSeqNo()));
+        // build group Queries
+        if (i==sortedQueries.begin() || (*i)->getHash() != lastHash) {
+            // hash changed, start of group 
+            groupQueries.push_back(seqNo);
+            lastHash = (*i)->getHash();
+        }
+        seqNo++;
+    }
+    // sort by first indexes
+    std::sort(responseIndex.begin(), responseIndex.end());
+}
+
+int Sphinx::MultiQueryOpt_t::getQueryCount() const
+{
+    return sourceQueries.size();
+}
+
+Sphinx::SearchCommandVersion_t Sphinx::MultiQueryOpt_t::getCommandVersion() const {
+    return commandVersion;
+}//konec fce
+
+//-------------------------------------------------------------------------
+
+Sphinx::SourceQuery_t::SourceQuery_t(const std::string &query,
+                             const SearchConfig_t &attr,
+                             int seqNo)
+    : inputSeqNo(seqNo)
+{
+    // serialize query and store
+    serializedQuery.convertEndian = true;
+    buildQueryVersion(query, attr, serializedQuery);
+
+    // compute hash
+    std::ostringstream o;
+    o << query << "\t"
+      << attr.selectClause << "\t"
+      << attr.matchMode << "\t";
+    // add filters to hash
+    for (std::vector<Filter_t *>::const_iterator i = attr.filters.begin();
+            i != attr.filters.end(); i++) {
+        o << **i << "\t";
+    }
+    hash = o.str();
+}
+
+
+//-------------------------------------------------------------------------
+
+
+
+
+//-------------------------------------------------------------------------
+
 unsigned short Sphinx::Client_t::processRequest(
     const Query_t &query,
     Query_t &data)
@@ -663,6 +930,79 @@ void Sphinx::Client_t::query(const std::string& query,
     parseResponseVersion(data, attrs.commandVersion, response);
 }//konec fce
 
+void Sphinx::Client_t::query(const MultiQueryOpt_t &mq,
+                             std::vector<Response_t> &response)
+{
+    SearchCommandVersion_t cmdVer = mq.getCommandVersion();
+
+    // test, if multiquery initialized, get the query
+    size_t groupCount = mq.getGroupQueryCount();
+    if (!groupCount) 
+        throw ClientUsageError_t("multiQuery not initialised or zero length.");
+
+    // initialize query polling machine
+    Sphinx::QueryMachine_t queryMachine(connection, DEFAULT_CONNECT_RETRIES);
+
+    // put queries into query machine
+    for (size_t i=0; i<groupCount; i++) {
+        Sphinx::Query_t groupQuery = mq.getGroupQuery(i);
+        size_t queryCount = mq.getQueryCountAtGroup(i);
+
+        if (!groupQuery.getLength() || !queryCount) {
+            throw ClientUsageError_t("multiQuery not initialised "
+                                      " or zero length.");
+        }
+
+        Query_t request;
+        request.convertEndian = true;
+        // create request header
+        buildHeader(SEARCHD_COMMAND_SEARCH, cmdVer,
+                    groupQuery.getLength(),
+                    request, queryCount);
+            
+        // add body to request
+        request << groupQuery;
+
+        //printf("launching group query, %lu subqueries\n", queryCount);
+        queryMachine.addQuery(request);
+    }
+    // launch query machine
+    queryMachine.launch();
+
+    // prepare response vector
+    response.clear();
+    response.resize(mq.getQueryCount());
+
+    // parse responses
+    std::string lastQueryWarning;
+
+    // step thru group responses
+    size_t seqNo = 0;
+    for (size_t i=0; i<groupCount; i++)
+    {
+        Query_t &data = queryMachine.getResponse(i);
+        size_t queryCount = mq.getQueryCountAtGroup(i);
+        // step thru queries within one response
+        for (size_t j = 0; j < queryCount; j++) {
+            Response_t resp;
+            try {
+                parseResponseVersion(data, cmdVer, resp);
+            } catch (const Warning_t &wt) {
+                std::ostringstream msg;
+                msg << "Query " << (i+1) << "," << (j+1) << ": " << wt.what();
+                lastQueryWarning = msg.str();
+            }
+            // place response into output
+            /*printf("%lu. response, getResponseIndex = %lu\n",
+                    seqNo, mq.getResponseIndex(seqNo));
+            */
+            response[mq.getResponseIndex(seqNo)] = resp;
+            seqNo++;
+        }
+        if (!lastQueryWarning.empty())
+            throw Warning_t(lastQueryWarning);
+    }
+} 
 
 void Sphinx::Client_t::query(const MultiQuery_t &query,
                                   std::vector<Response_t> &response)
@@ -709,6 +1049,7 @@ void Sphinx::Client_t::query(const MultiQuery_t &query,
     if (!lastQueryWarning.empty())
         throw Warning_t(lastQueryWarning);
 }//konec fce
+
 
 //-----------------------------------------------------------------------------
 
@@ -833,11 +1174,5 @@ std::vector<Sphinx::KeywordResult_t> Sphinx::Client_t::getKeywords(
 
 void sphinxClientDummy()
 { }
-
-
-
-
-
-
 
 

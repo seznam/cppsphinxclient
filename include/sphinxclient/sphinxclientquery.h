@@ -76,6 +76,7 @@ struct Query_t
     Query_t &operator >> (std::string &);
 
     Query_t &operator = (const Query_t &);
+    Query_t(const Query_t &source);
 
     bool operator ! () const { return error; }
 
@@ -85,6 +86,27 @@ struct Query_t
 
     void read(int socket_d, int bytesToRead, Client_t &connection,
               const std::string &stage);
+
+    /** @brief reads data on readable socket
+      *
+      * @param socket_d socket to perform read on
+      * @param bytesToRead bytes pending
+      * @return 0 if read is done and there is nothing to read
+      *         1 if something has been read, but some is remaining
+      *         -1 if nothing has been read, try again
+      */
+    int readOnReadable(int socket_d, int &bytesToRead, const std::string &stage);
+
+    /** @brief writes data on writable socket
+      *
+      * @param socket_d socket to perform write on
+      * @param bytesSent bytes already sent
+      * @return 0 if write is done and there is nothing to write
+      *         1 if something has been written, but some is remaining
+      *         -1 if nothing has been written, try again
+      */
+    int writeOnWritable(int socket_d, unsigned int &bytesSent, const std::string &stage);
+
 };//struct
 
 }//namespace

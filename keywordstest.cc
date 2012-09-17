@@ -58,8 +58,8 @@ int main()
 
     printf("starting.....\n");
 
-    std::string query = "intel core 2 duo";
-    std::string index = "test_idx";
+    std::string query = "ahoj bla morce";
+    std::string index = "test1";
 
     try{
         //keywords

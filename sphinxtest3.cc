@@ -21,7 +21,7 @@
 * Radlicka 2, Praha 5, 15000, Czech Republic
 * http://www.seznam.cz, mailto:sphinxclient@firma.seznam.cz
 *
-* $Id$
+* $Id: sphinxtest.cc 15 2009-06-17 06:40:44Z honkir $
 *
 * DESCRIPTION
 * A sphinxclient sample and testing program.
@@ -90,10 +90,15 @@ int main()
     settings.groupSort = "@id asc";
 
     // create multiquery
-    Sphinx::MultiQuery_t query(Sphinx::VER_COMMAND_SEARCH_0_9_9);
+    Sphinx::MultiQueryOpt_t query(Sphinx::VER_COMMAND_SEARCH_0_9_9);
+    query.addQuery("ped ahoj popisek", settings);
     query.addQuery("pes ahoj", settings);
     settings.groupBy = "att_uint";
     query.addQuery("pes ahoj", settings);
+    query.addQuery("ped ahoj popisek", settings);
+    
+    // group queries that are efficient for sphinx multi-query processing
+    query.optimise();
 
     try{
         //multi query

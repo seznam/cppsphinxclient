@@ -1,0 +1,18 @@
+
+Test sphinxclient
+
+./run-test.sh
+
+Script sets up test environment and run tests. Sphinx indexer
+and searchd binaries must be put in directories in $PATH environment
+variable.
+
+Description of what run-test.sh does:
+
+* create database sphinxtest_cppsphinxclient_123456
+* fill database with test values
+* index with sphinx indexer command
+* starts searchd
+* run test programs
+* stop searchd
+

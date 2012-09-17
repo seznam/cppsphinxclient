@@ -69,13 +69,48 @@ Query_t::Query_t(unsigned int size)
 {
     dataSize = size;
     data = new unsigned char[dataSize];
+    //printf("%p constructor with size, created data: %p\n", this, data);
     dataStartPtr = dataEndPtr = 0;
     error= false;
     convertEndian = false;
 }//konstruktor
 
+Query_t::Query_t(const Query_t &source)
+{
+    // copy data
+    dataSize = source.dataSize;
+    dataStartPtr = source.dataStartPtr;
+    dataEndPtr = source.dataEndPtr;
+    error = source.error;
+    convertEndian = source.convertEndian;
+    data = new unsigned char[source.dataSize];
+    //printf("%p copy const from %p, created data: %p ...\n", this, &source,data);
+    //printf("data cpy %p->%p ... \n", source.data, data);
+    memcpy(data, source.data, source.dataSize);
+} //copy contructor
+
+Query_t &Query_t::operator= (const Query_t &val)
+{
+
+    if (&val != this) {
+
+        //printf("ggg3");
+        data = val.data;
+        dataSize = val.dataSize;
+        dataEndPtr = val.dataEndPtr;
+        dataStartPtr = val.dataStartPtr;
+        convertEndian = val.convertEndian;
+
+        delete [] data;
+        data = new unsigned char[val.dataSize];
+        memcpy(data, val.data, val.dataSize);
+    }
+    return *this;
+}//konec fce
+
 Query_t::~Query_t()
 {
+    //printf("%p destructor\n", this);
     delete [] data;
 }//konstruktor
 
@@ -289,17 +324,7 @@ Query_t &Query_t::operator >> (std::string &val)
     return *this;
 }//konec fce
 
-Query_t &Query_t::operator= (const Query_t &val)
-{
-    delete [] data;
-    data = val.data;
-    dataSize = val.dataSize;
-    dataEndPtr = val.dataEndPtr;
-    dataStartPtr = val.dataStartPtr;
-
-    return *this;
-}//konec fce
-    
+   
    
 void Query_t::read(int socket_d, int bytesToRead, Client_t &connection,
                    const std::string &stage)
@@ -356,3 +381,96 @@ void Query_t::read(int socket_d, int bytesToRead, Client_t &connection,
 
 
 }
+
+
+int Query_t::readOnReadable(int socket_d, int &bytesToRead, const std::string &stage) {
+
+    // check the free space
+    int free_space = dataSize - dataEndPtr;
+    if (free_space <= 0) {
+        //message to large for this buffer, double the size
+        doubleSizeBuffer();
+        // recompute free space
+        free_space = dataSize - dataEndPtr;
+    }
+
+    // read data
+    int result = recv(socket_d, data + dataEndPtr,
+            (bytesToRead > free_space ? free_space : bytesToRead) ,0);
+
+    // debug print
+    //printf("result: %d bytes read, old endPtr=%d, new endPtr=%d, size=%d, space before=%d, space after=%d\n",
+    //        result, dataEndPtr, dataEndPtr+result, dataSize, free_space, free_space-result );
+
+    // readable socket, byt nothing to read (conenction closed) 
+    if (result == 0) {
+        throw Sphinx::ConnectionError_t(
+            stage +
+            strError("::recv error: connection closed"));
+    }
+    if (result < 0) {
+        if (errno == EINTR) {
+            // interrupted - try again
+            return -1;
+        } else if (errno == EINPROGRESS) {
+            // blocking operation still in progress, try again after
+            // a few microsecs
+            usleep(10);
+            return -1;
+        }
+
+        throw Sphinx::ConnectionError_t(
+            strError("recv error"));
+    }
+
+    dataEndPtr += result;
+    bytesToRead -= result;
+
+    // not all done
+    if (bytesToRead > 0) return 1;
+
+    // all done 
+    return 0;
+
+    
+}
+
+
+
+int Query_t::writeOnWritable(int socket_d, unsigned int &bytesSent, const std::string &stage)
+{
+
+    errno = 0;
+    int result = send(socket_d, data + bytesSent,
+                      dataEndPtr - bytesSent, 0);
+
+    if (result < 0) {
+        // error
+        if (errno == EAGAIN) {
+            // socket was writable, but can't write => error
+            throw Sphinx::ConnectionError_t(stage +
+                strError("::send error: can't write on writable"));
+        } else if (errno == EINTR) {
+            // interrupted - try again
+            return -1;
+        } else {
+            throw Sphinx::ConnectionError_t(stage +
+                strError("::send error: can't write"));
+        }
+    } else if (result == 0) {
+        // nothing written
+        throw Sphinx::ConnectionError_t(stage +
+            strError("::send error: written 0 bytes write on writable"));
+    } else {
+        // ok, something written
+        bytesSent += result;
+
+        if (bytesSent < dataEndPtr) {
+            // something remaining for write
+            return 1;
+        }
+        // all written
+        return 0;
+    }
+}
+

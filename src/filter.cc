@@ -44,6 +44,15 @@ Sphinx::Filter_t::Filter_t()
     : attrName(""), excludeFlag(false)
 {}
 
+namespace Sphinx {
+    std::ostream & operator<< (std::ostream &o,
+                               const Sphinx::Filter_t &f)
+    {
+        o << ((f.excludeFlag) ? "!" : "") << f.attrName << ";";
+        return f.print(o);
+    } 
+}
+
 Sphinx::RangeFilter_t::RangeFilter_t(std::string attrName, uint32_t minValue,
                                      uint32_t maxValue, bool excludeFlag)
                 : minValue(minValue), maxValue(maxValue) 
@@ -51,6 +60,13 @@ Sphinx::RangeFilter_t::RangeFilter_t(std::string attrName, uint32_t minValue,
     this->attrName = attrName;
     this->excludeFlag = excludeFlag;
 }
+
+std::ostream & Sphinx::RangeFilter_t::print(std::ostream &o) const
+{
+    o << minValue << ";" << maxValue;
+    return o;
+}
+
 
 void Sphinx::RangeFilter_t::dumpToBuff(Sphinx::Query_t &data,
                                 const Sphinx::SearchCommandVersion_t &v) const
@@ -86,6 +102,11 @@ void Sphinx::RangeFilter_t::dumpToBuff(Sphinx::Query_t &data,
     }//switch
 }
 
+Sphinx::Filter_t * Sphinx::RangeFilter_t::clone() const
+{
+    return new Sphinx::RangeFilter_t(*this);
+}
+
 Sphinx::EnumFilter_t::EnumFilter_t(std::string attrName,
                                    const Int64Array_t &values,
                                    bool excludeFlag)
@@ -108,6 +129,16 @@ Sphinx::EnumFilter_t::EnumFilter_t(std::string attrName,
 
     this->attrName = attrName;
     this->excludeFlag = excludeFlag;
+}
+
+std::ostream & Sphinx::EnumFilter_t::print(std::ostream &o) const
+{
+    for (Int64Array_t::const_iterator i = values.begin();
+        i != values.end(); i++)
+    {
+        o << *i << ";";
+    }
+    return o;
 }
 
 void Sphinx::EnumFilter_t::dumpToBuff(Sphinx::Query_t &data,
@@ -155,6 +186,11 @@ void Sphinx::EnumFilter_t::dumpToBuff(Sphinx::Query_t &data,
     }//switch
 };
 
+Sphinx::Filter_t * Sphinx::EnumFilter_t::clone() const
+{
+    return new Sphinx::EnumFilter_t(*this);
+}
+
 
 Sphinx::FloatRangeFilter_t::FloatRangeFilter_t(std::string attrName, float minValue,
                                      float maxValue, bool excludeFlag)
@@ -162,6 +198,12 @@ Sphinx::FloatRangeFilter_t::FloatRangeFilter_t(std::string attrName, float minVa
 {
     this->attrName = attrName;
     this->excludeFlag = excludeFlag;
+}
+
+std::ostream & Sphinx::FloatRangeFilter_t::print(std::ostream &o) const
+{
+    o << minValue << ";" << maxValue;
+    return o;
 }
 
 void Sphinx::FloatRangeFilter_t::dumpToBuff(Sphinx::Query_t &data,
@@ -175,6 +217,11 @@ void Sphinx::FloatRangeFilter_t::dumpToBuff(Sphinx::Query_t &data,
                  << maxValue;
             data << (uint32_t) excludeFlag;
         }//else
+}
+
+Sphinx::Filter_t * Sphinx::FloatRangeFilter_t::clone() const
+{
+    return new Sphinx::FloatRangeFilter_t(*this);
 }
 
 

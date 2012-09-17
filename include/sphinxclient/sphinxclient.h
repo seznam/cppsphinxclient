@@ -45,8 +45,10 @@
 #include <sphinxclient/value.h>
 #include <sphinxclient/filter.h>
 
+#include <sstream>
 #include <string>
 #include <vector>
+#include <list>
 #include <map>
 #include <stdint.h>
 
@@ -204,6 +206,22 @@ struct GeoAnchorPoint_t {
 
 struct SearchConfig_t
 {
+    /** Copy constructor
+      */
+    SearchConfig_t(const SearchConfig_t &from);
+
+    /** Assignment op.
+      */
+    SearchConfig_t &operator= (const SearchConfig_t &from);
+
+    /** Makes deep copy
+      */
+    void makeCopy(const SearchConfig_t &from);
+
+    /** desctructor
+      */
+    ~SearchConfig_t();
+
     SearchConfig_t(SearchCommandVersion_t cmdVer = VER_COMMAND_SEARCH_0_9_9);
 
     /** @brief Adds range attribute filter to search config
@@ -419,7 +437,10 @@ protected:
     int queryCount;
 
 public:
-    //! @brief Constructor, which sets multi-query command version
+    /** @brief Constructor of multiquery
+     * 
+     * @param cv cmdVersion command version of multiquery
+     */
     MultiQuery_t(SearchCommandVersion_t cmdVersion = VER_COMMAND_SEARCH_0_9_8);
 
     //! @brief resets query data and multi-query command version
@@ -443,6 +464,152 @@ public:
     //! @brief returns command version
     SearchCommandVersion_t getCommandVersion() const;
 };//class
+
+
+// ---------------------------- MultiqueryOpt_t --------------------------------
+
+/* @brief Sphinx::Query_t with possibility identify whether the query is 
+ *        composable into multiquery with another query
+ */
+class SourceQuery_t {
+public:
+    /* Constructor
+     * 
+     * @param query query string
+     * @param queryAttr sorting, grouping, etc...
+     * @param seqNo incoming sequence number of query
+     */
+    SourceQuery_t(const std::string &query, const SearchConfig_t &queryAttr,
+                  int seqNo);
+    /* @brief compute hash from filters, etc. that must be same within one
+     *        efficient multiquery
+     * @return hash
+     */ 
+    const std::string &getHash() const {return hash;}
+    /* @brief get sequence nr. of input query
+     * @return sequence nr (starting grom 0.)
+     */
+    int getInputSeqNo() const {return inputSeqNo;}
+    /* @brief get encapsulated Sphinx::Query_t
+     * @return the query
+     */
+    const Query_t &getQuery() const {return serializedQuery;}
+
+private:
+    /// serialized query object
+    Query_t serializedQuery;
+    /// hash identifies whether the SourceQuery could be joined with other one
+    /// into sphinx multiquery
+    std::string hash;
+    /// sequence number (starting from 0.)
+    int inputSeqNo;
+};
+
+
+/** @brief Optimisation-enabled multi query data structure
+  *
+  * This class provides methods and storage for creating multi-queries
+  * enabled for efficient processing
+  *
+  * Sphinx search daemon sometimes doesn't process multiqueries 
+  * efficient way. Efficient processing means that matching stage of query
+  * is done only once and there are number of sorters or groupers for
+  * each specific query. When multiquery is consisted of queries
+  * impossible to have the same matching stage, queries are processed
+  * one by one separately and processing takes long time to finish.
+  * 
+  * This version of multiquery analyses input queries and group them
+  * to groups efficient for sphinx one-pass multi-query processing.
+  * method optimise() do that. If calling optimise is ommited,
+  * multiquery is sent in traditional manner as one big multiquery.
+  * 
+  * Query groups are then sent in Clinent_t::query() to sphinx searchd
+  * simultaneously by passing them to QueryMachine_t. After collecting
+  * replies from server responses are parsed and ordered as they came
+  * to server.
+  *
+  * @see QueryMachine_t
+  * @see Client_t
+  */
+class MultiQueryOpt_t
+{
+public:
+    /** @brief Constructor of multiquery
+     * 
+     * @param cv cmdVersion command version of multiquery
+     */
+    MultiQueryOpt_t(SearchCommandVersion_t cmdVersion = VER_COMMAND_SEARCH_0_9_8);
+
+    /* @brief groups input queries into groups efficient for sphinx multiquery
+     *        processing.
+     *
+     * Optimisation is disabled for command version < 0.9.8.
+     */
+    void optimise();
+
+    /** @brief adds a query to multi-query
+      *
+      * Adds a query to multi-query and checks command version against
+      * multi-query command version
+      *
+      * @param query words in string to search for
+      * @param queryAttr query attributes
+      * @throws ClientUsageError_t
+      * @see Client_t::query
+      * @see SearchConfig_t
+      */
+    void addQuery(const std::string& query, const SearchConfig_t &queryAttr);
+
+    friend class Sphinx::Client_t;
+protected:
+    SearchCommandVersion_t commandVersion;
+    /// source queries ordered as they come from client
+    std::list<SourceQuery_t> sourceQueries;
+    /// queries sorted by hash (queries with same hash are suitable
+    /// for efficient processing within one sphinx multiquery)
+    std::vector<const SourceQuery_t *> sortedQueries;
+    /// maps <source seqNo -> sortedQuery position in order to order responses
+    std::vector<std::pair<int, int> > responseIndex;
+    /// groupQuery specification
+    /// indexes of first queries within group queries in sortedQueries
+    std::vector<int> groupQueries;
+
+    //! @brief resets query data and multi-query command version
+    void initQuery(SearchCommandVersion_t commandVersion);
+
+    /* @brief get query group concatenated to one multiquery sphinx request
+     * @param groupIndex index of query group
+     * @return multiquery request
+     */
+    Sphinx::Query_t getGroupQuery(size_t groupIndex) const;
+
+    /* @brief get count of query groups, that are efficient to process by
+     *        sphinx multiquery mechanism
+     * @return query group count
+     */
+    size_t getGroupQueryCount() const;
+
+    //!< @brief returns input query count
+    int getQueryCount() const; 
+    
+    /** @brief get count of input queries in query group
+      * @param groupIndex index of queryGroup
+      * @return count of input queries in group
+      */
+    size_t getQueryCountAtGroup(size_t groupIndex) const;
+
+    /** @brief Find out where to place response of query
+      *        specified by position at sorted index
+      * @param sortedIndex position of query at sorted index      
+      * @return index where to place the response
+      */
+    size_t getResponseIndex(size_t sortedIndex) const;
+
+    //! @brief returns command version
+    SearchCommandVersion_t getCommandVersion() const;
+};//class
+
+// ------------------------ Attribute updates ---------------------------
 
 /** @brief structure that holds attribute names and their values in
   *        documents to be updated
@@ -529,6 +696,22 @@ public:
       */
     void query(const MultiQuery_t &query, std::vector<Response_t> &response);
 
+    /** @brief send a search multi-query optimised to the searchd
+      *
+      * Sends an optimized multi-query to the sphinx searchd and fills the response
+      * structure vector. On exception the content of the response is undefined,
+      * any previous structure content is invalidated anyway.
+      *
+      * Multiquery divides queries into similar multiquery-efficient groups. These
+      * groups are sent simoultanously in parrallel connections to searchd.
+      * @see QueryMachine_t
+      *
+      * @param query initialized MultiQueryOpt_t object witg queries added
+      * @param response output parameter - response structure
+      * @throws SphinxClientError_t on any communication or parsing error
+      * @see MultiQueryOpt_t
+      */
+    void query(const MultiQueryOpt_t &query, std::vector<Response_t> &response);
     
     /** @brief send a update command to searchd
       *
@@ -567,7 +750,6 @@ protected:
       */
 
     // -------- communication methods ----------
-    void receiveData(Query_t &buff);
     int receiveResponse(Query_t &buff, unsigned short &version);
     void sendData(const Query_t &buff);
     void connect();
