@@ -37,7 +37,7 @@
  */
 
 
-#include <sphinxclient/filter.h>
+#include <filter.h>
 
 
 Sphinx::Filter_t::Filter_t()

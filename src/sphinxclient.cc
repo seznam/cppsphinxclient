@@ -41,6 +41,7 @@
 #include <sphinxclient/sphinxclientquery.h>
 #include <sphinxclient/error.h>
 #include <sphinxclient/globals.h>
+#include <filter.h>
 
 #include <sstream>
 #include <algorithm>
@@ -66,9 +67,6 @@
 
 //------------------------------------------------------------------------------
 
-// TODO - move to ConnectionConfig_t and make it configurable
-// (will break binary compatibility)
-#define DEFAULT_CONNECT_RETRIES 1
 
 //------------------------------------------------------------------------------
 // query version handlers declarations
@@ -101,10 +99,8 @@ void parseKeywordsResponse_v0_9_8(Sphinx::Query_t &data,
 //------------------------------------------------------------------------------
 // Connection configuration
 //------------------------------------------------------------------------------
-/*
-namespace Sphinx {
 
-struct PrivateConnectionConfig_t
+struct Sphinx::ConnectionConfig_t::PrivateData_t
 {
     std::string host;
     unsigned short port;
@@ -113,39 +109,92 @@ struct PrivateConnectionConfig_t
     int32_t connectTimeout;
     int32_t readTimeout;
     int32_t writeTimeout;
+    int32_t connectRetriesCount;
+    int32_t connectRetryWait;
 
-    PrivateConnectionConfig_t(const std::string &host, unsigned short port,
-                              bool kAlive, int32_t cTm, int32_t rTm,
-                              int32_t wTm)
-        : host(host), port(port), keepAlive(kAlive), connectTimeout(cTm),
-          readTimeout(rTm), writeTimeout(wTm) {}
-};//struct
-
-}//namespace
-
+    void makeCopy(const Sphinx::ConnectionConfig_t::PrivateData_t &from)
+    {
+        host = from.host;
+        port = from.port;
+        keepAlive = from.keepAlive;
+        connectTimeout = from.connectTimeout;
+        readTimeout = from.readTimeout;
+        writeTimeout = from.writeTimeout;
+        connectRetriesCount = from.connectRetriesCount;
+        connectRetryWait = from.connectRetryWait;
+    }
+};
 
 Sphinx::ConnectionConfig_t::ConnectionConfig_t(const std::string &host,
         unsigned short port, bool keepAlive, int32_t connectTimeout,
-        int32_t readTimeout, int32_t writeTimeout)
-    : cfgData(new Sphinx::PrivateConnectionConfig_t(
-                      host, port, keepAlive, connectTimeout, readTimeout,
-                      writeTimeout))
-{}
+        int32_t readTimeout, int32_t writeTimeout,
+        int32_t connectRetriesCount, int32_t connectRetryWait)
+{
+    d = new PrivateData_t;
+    d->host = host;
+    d->port = port;
+    d->keepAlive = keepAlive;
+    d->connectTimeout = connectTimeout;
+    d->readTimeout = readTimeout;
+    d->writeTimeout = writeTimeout;
+    d->connectRetriesCount = connectRetriesCount;
+    d->connectRetryWait = connectRetryWait;
+}
+    
+Sphinx::ConnectionConfig_t::ConnectionConfig_t(
+        const Sphinx::ConnectionConfig_t &from)
+{
+    d = new PrivateData_t;
+    d->makeCopy(*from.d);
+}
+
+Sphinx::ConnectionConfig_t &Sphinx::ConnectionConfig_t::operator=(
+    const Sphinx::ConnectionConfig_t &from)
+{
+    if (this != &from)
+    {
+        d->makeCopy(*from.d);
+    }
+    return *this;
+}
 
 Sphinx::ConnectionConfig_t::~ConnectionConfig_t()
 {
-    delete cfgData;
-}//konec fce
-*/
+    delete d;
+}
 
-Sphinx::ConnectionConfig_t::ConnectionConfig_t(const std::string &host,
-        unsigned short port, bool keepAlive, int32_t connectTimeout,
-        int32_t readTimeout, int32_t writeTimeout) : host(host), port(port),
-                                               keepAlive(keepAlive),
-                                               connectTimeout(connectTimeout),
-                                               readTimeout(readTimeout),
-                                               writeTimeout(writeTimeout)
-{}
+const std::string &Sphinx::ConnectionConfig_t::getHost() const
+{
+    return d->host;
+}
+unsigned short Sphinx::ConnectionConfig_t::getPort() const
+{
+    return d->port;
+}
+bool Sphinx::ConnectionConfig_t::getKeepAlive() const
+{
+    return d->keepAlive;
+}
+int32_t Sphinx::ConnectionConfig_t::getConnectTimeout() const
+{
+    return d->connectTimeout;
+}
+int32_t Sphinx::ConnectionConfig_t::getReadTimeout() const
+{
+    return d->readTimeout;
+}
+int32_t Sphinx::ConnectionConfig_t::getWriteTimeout() const
+{
+    return d->writeTimeout;
+}
+int32_t Sphinx::ConnectionConfig_t::getConnectRetriesCount() const
+{
+    return d->connectRetriesCount;
+}
+int32_t Sphinx::ConnectionConfig_t::getConnectRetryWait() const
+{
+    return d->connectRetryWait;
+}
 
 //------------------------------------------------------------------------------
 
@@ -171,6 +220,7 @@ Sphinx::SearchConfig_t &Sphinx::SearchConfig_t::operator= (
     const Sphinx::SearchConfig_t &from)
 {
     if (&from != this) {
+        clear();
         makeCopy(from);
     }
     return *this;
@@ -221,6 +271,10 @@ void Sphinx::SearchConfig_t::makeCopy(const Sphinx::SearchConfig_t &from)
 }
 
 Sphinx::SearchConfig_t::~SearchConfig_t() {
+    clear();
+}
+
+void Sphinx::SearchConfig_t::clear() {
     // handle filters
     for (std::vector<Filter_t *>::const_iterator i = filters.begin();
         i != filters.end(); i++)
@@ -228,6 +282,7 @@ Sphinx::SearchConfig_t::~SearchConfig_t() {
         delete *i;
     }
 }
+
 
 void Sphinx::SearchConfig_t::addRangeFilter(std::string attrName, uint64_t minValue,
                                        uint64_t maxValue,
@@ -319,329 +374,8 @@ void Sphinx::Response_t::clear()
 //------------------------------------------------------------------------------
 
 Sphinx::Client_t::Client_t(const ConnectionConfig_t &settings)
-    : connection(settings), socket_d(-1)
+    : connection(settings)
 {}//konstruktor
-
-Sphinx::Client_t::~Client_t()
-{
-    if (socket_d > -1)
-    {
-        TEMP_FAILURE_RETRY(::close(socket_d));
-        socket_d = -1;
-    }//if
-}//destruktor
-
-//------------------------------------------------------------------------------
-
-
-void Sphinx::Client_t::connect()
-{
-    // reconnect socket when connected
-    if (!connection.keepAlive && (socket_d > -1))
-    {
-        TEMP_FAILURE_RETRY(::close(socket_d));
-        socket_d = -1;
-    }
-
-    // initialize closer (initially closes socket when valid)
-    SocketCloser_t closer(socket_d);
-
-    // test the current connection
-    if (socket_d > -1)
-    {
-        closer.doClose = false;
-
-        fd_set rfdset;
-        FD_ZERO(&rfdset);
-        FD_SET(socket_d, &rfdset);
-        // wait for no time
-        struct timeval timeout = { 0, 0 };
-
-        switch (::select(socket_d + 1, &rfdset, NULL, NULL, &timeout))
-        {
-        case 0:
-            // passed test
-            break;
-
-        case -1:
-            // test failed - close socket
-            TEMP_FAILURE_RETRY(::close(socket_d));
-            socket_d = -1;
-            break;
-
-        default:
-            // are there any data available?
-            char buff;
-            switch (recv(socket_d, &buff, 1, MSG_PEEK))
-            {
-            case -1:
-            case 0:
-                // close the socket
-                TEMP_FAILURE_RETRY(::close(socket_d));
-                socket_d = -1;
-                break;
-
-            default:
-                // OK
-                break;
-            }
-        }
-    }
-
-    // socket closed
-    if (socket_d < 0)
-    {
-        // new socket
-        if ((socket_d = ::socket(PF_INET, SOCK_STREAM, 0)) < 0)
-        {
-            // oops! error
-            throw Sphinx::ConnectionError_t(
-                            std::string("Unable to create socket (")
-                            + std::string(strerror(errno)) + std::string(")"));
-        }
-
-        if (::fcntl(socket_d, F_SETFL, O_NONBLOCK) < 0)
-        {
-            throw Sphinx::ConnectionError_t(
-                           std::string("Cannot set socket non-blocking: ")
-                           + std::string(strerror(errno)));
-        }
-
-        // nastavíme okam¾ité odesílání packetù po TCP
-        // disabluje Nagle algoritmus, zdrojáky Apache øíkají, ¾e je to OK
-        /*int just_say_no = 1;
-        if (::setsockopt(socket_d, IPPROTO_TCP, TCP_NODELAY,
-                         (char*) &just_say_no, sizeof(int)) < 0)
-        {
-            throw HTTPError_t(HTTP_SYSCALL,
-                              "Cannot set socket non-delaying: "
-                              "<%d, %s>.", ERRNO, STRERROR(ERRNO));
-        }*/
-
-        // reslove host name
-        struct hostent *he = gethostbyname(connection.host.c_str());
-        if (!he) {
-            // oops
-            throw Sphinx::ConnectionError_t(
-                                      std::string("Cannot resolve host '")
-                                      + connection.host + std::string("'."));
-        }//if
-
-        //get the IP address
-        struct in_addr ipaddr;
-        ipaddr = *reinterpret_cast<in_addr*>(he->h_addr_list[0]);
-
-        // update remote address struct
-        struct sockaddr_in addrStruct;
-
-        addrStruct.sin_family = AF_INET;
-        addrStruct.sin_addr = ipaddr;
-        addrStruct.sin_port = htons(connection.port);
-        memset(addrStruct.sin_zero, 0x0, 8);
-
-        // connect to the server
-        if (::connect(socket_d, (struct sockaddr *) &addrStruct,
-                      sizeof(struct sockaddr)) < 0 )
-        {
-            switch (errno)
-            {
-            case EINPROGRESS:    // connect in progress
-            case EALREADY:       // connect already called
-            case EWOULDBLOCK:    // no errors
-                break;
-
-            default:
-                throw Sphinx::ConnectionError_t(
-                    strError("Can't connect socket"));
-            }
-
-            // descriptor set
-            fd_set wfds;
-            FD_ZERO(&wfds);
-            FD_SET(socket_d, &wfds);
-
-            // create timeout
-            struct timeval timeout =
-                {
-                    connection.connectTimeout / 1000,
-                    (connection.connectTimeout % 1000) * 1000
-                };
-
-            // connect finished ?
-            int ready = ::select(socket_d + 1, NULL, &wfds, NULL,
-                            (connection.connectTimeout < 0) ? NULL : &timeout);
-
-            if (ready <= 0)
-            {
-                switch (ready)
-                {
-                case 0:
-                    throw Sphinx::ConnectionError_t(
-                        "Can't connect socket: connect timeout");
-                default:
-                    throw Sphinx::ConnectionError_t(
-                        strError("Can't select on socket"));
-                }
-            }
-
-            // connect call status
-            socklen_t len = sizeof(int);
-            int status;
-
-            if (::getsockopt(socket_d, SOL_SOCKET, SO_ERROR,
-                             &status, &len))
-            {
-                throw Sphinx::ConnectionError_t(
-                    strError("Cannot get socket info"));
-            }
-            if (status)
-            {
-                throw Sphinx::ConnectionError_t(
-                    strError("Cannot connect socket", status));
-            }
-
-            // connect OK => do not close socket!
-            closer.doClose = false;
-
-            //test server version
-            Sphinx::Query_t buff;
-            buff.read(socket_d, 4, *this, "connect handshake");
-
-            if(!buff.getLength())
-                throw Sphinx::ServerError_t(
-                                    "Unable to determine the server version.");
-
-            uint32_t version=0;
-            buff >> version;
-            if (!buff || version < 1)
-            {
-                throw Sphinx::ServerError_t(
-                            "Protocol version on the server is less than 1.");
-            }//if
-
-            buff.clear();
-            buff << (uint32_t) 1;
-            sendData(buff);
-        } else {
-            // immediate non-blocking success -> do not close :-)
-            closer.doClose = false;
-        }//if connect < 0
-    }//if socket closed
-}//konec fce
-
-void Sphinx::Client_t::close()
-{
-    if(socket_d > -1)
-    {
-        TEMP_FAILURE_RETRY(::close(socket_d));
-        socket_d = -1;
-    }//if
-}//konec fce
-
-
-void Sphinx::Client_t::waitSocketReadable(const std::string &stage) {
-
-    int ready;
-    struct pollfd fd;
-
-    fd.fd = socket_d;
-    fd.events = POLLIN;
-
-    while ((ready = poll(&fd, 1, connection.readTimeout)) <= 0){
-        //no data available or other error
-        if (ready == 0) {
-            // read timeout expired
-            throw Sphinx::ConnectionError_t(
-                stage +
-                std::string("::Error reading response (read timeout expired)"));
-        } else if (ready < 0) {
-            // EINTR - poll was interrupted, restart select
-            if (errno == EINTR) continue;
-            throw Sphinx::ConnectionError_t(
-                stage +
-                strError("::Error reading response while selecting"));
-        }
-    }
-}
-
-int Sphinx::Client_t::receiveResponse(Query_t &buff, unsigned short &version)
-{
-
-    //receive the first part - 8B header
-    buff.read(socket_d, 8, *this, "query header");
-
-    unsigned short status;
-    uint32_t length;
-
-    //read status, version, data length
-    buff.convertEndian = true;
-
-    if (!(buff >> status))
-    {
-        throw Sphinx::ServerError_t("Unable to read response status.");
-    }//if
-
-    if (!(buff >> version))
-    {
-        throw Sphinx::ServerError_t("Unable to read response version.");
-    }//if
-
-    if (!(buff >> length))
-    {
-        throw Sphinx::ServerError_t("Unable to read response length.");
-    }//if
-
-
-    // debug
-    //printf("length=%d, buffLength=%d\n", length, buff.getLength());
-    
-    // read whole message to buffer
-    buff.read(socket_d, length, *this, "query response");
-
-    return status;
-}//konec fce
-
-void Sphinx::Client_t::sendData(const Query_t &buff)
-{
-    struct timeval tstruct, *ptstruct;
-    fd_set wfds;
-    int result;
-
-    // descriptor set
-    FD_ZERO(&wfds);
-    FD_SET(socket_d, &wfds);
-
-    // create timeout
-    tstruct.tv_sec = connection.writeTimeout/1000;
-    tstruct.tv_usec = (connection.writeTimeout % 1000) * 1000;
-    ptstruct = (connection.writeTimeout<0) ? NULL : &tstruct;
-
-    int ready = ::select(socket_d + 1, NULL, &wfds, NULL, ptstruct);
-
-    // not managed to send
-    if (ready <= 0)
-        throw Sphinx::ConnectionError_t(
-                       "Client to server connection error while sending data.");
-
-    unsigned int bytesSent=buff.dataStartPtr;
-
-    do {
-        errno = 0;
-        result = send(socket_d, buff.data + bytesSent,
-                      buff.dataEndPtr - bytesSent, 0);
-
-        if (result <= 0 && errno == EAGAIN)
-            continue;
-
-        if (result <= 0)
-            throw Sphinx::ConnectionError_t(
-                       "Client to server connection error while sending data.");
-
-        bytesSent += result;
-    }
-    while (bytesSent < buff.dataEndPtr);
-}//konec fce
-
 
 //-------------------------------------------------------------------------
 
@@ -876,44 +610,11 @@ Sphinx::SourceQuery_t::SourceQuery_t(const std::string &query,
 
 //-------------------------------------------------------------------------
 
-unsigned short Sphinx::Client_t::processRequest(
-    const Query_t &query,
-    Query_t &data)
-{
-    unsigned short responseVersion;
-    SocketCloser_t socketCloser(socket_d);
-
-    //if not connected, connect to the server
-    connect();
-
-    //send request
-    sendData(query);
-
-    //receive response
-    if (int status = receiveResponse(data, responseVersion) != SEARCHD_OK)
-    {
-        std::ostringstream err;
-        unsigned char errBuff[200];
-        int length = data.dataEndPtr - data.dataStartPtr - 4;
-        memcpy(errBuff, data.data + data.dataStartPtr + 4, length);
-        *(errBuff + length + 1) = '\0';
-        err << "response status not OK ( " << status << " ), : " << errBuff;
-        throw Sphinx::MessageError_t(err.str());
-    }//if
-
-    //don't close the connection, when keepalive is set
-    if (connection.keepAlive)
-        socketCloser.doClose = false;
-
-    return responseVersion;
-}//konec fce
-
 void Sphinx::Client_t::query(const std::string& query,
                              const SearchConfig_t &attrs,
                              Response_t &response)
 {
     Query_t data, request;
-    unsigned short responseVersion;
     data.convertEndian = true;
     request.convertEndian = true;
 
@@ -923,11 +624,19 @@ void Sphinx::Client_t::query(const std::string& query,
                 request);
     request << data;
 
-    //---------------process request--------------
-    responseVersion = processRequest(request, data);    
+    // initialize query polling machine
+    Sphinx::QueryMachine_t queryMachine(connection);
+
+    // put query into query machine
+    queryMachine.addQuery(request);
+
+    // launch query machine
+    queryMachine.launch();
+
+    Query_t responseData = queryMachine.getResponse(0); 
 
     //--------- parse response -------------------
-    parseResponseVersion(data, attrs.commandVersion, response);
+    parseResponseVersion(responseData, attrs.commandVersion, response);
 }//konec fce
 
 void Sphinx::Client_t::query(const MultiQueryOpt_t &mq,
@@ -941,7 +650,7 @@ void Sphinx::Client_t::query(const MultiQueryOpt_t &mq,
         throw ClientUsageError_t("multiQuery not initialised or zero length.");
 
     // initialize query polling machine
-    Sphinx::QueryMachine_t queryMachine(connection, DEFAULT_CONNECT_RETRIES);
+    Sphinx::QueryMachine_t queryMachine(connection);
 
     // put queries into query machine
     for (size_t i=0; i<groupCount; i++) {
@@ -1025,9 +734,17 @@ void Sphinx::Client_t::query(const MultiQuery_t &query,
                 request, queryCount);
     request << queries;
 
-    // send request and receive response
-    unsigned short responseVersion;
-    responseVersion = processRequest(request, data);    
+    // initialize query polling machine
+    Sphinx::QueryMachine_t queryMachine(connection);
+
+    // put query into query machine
+    queryMachine.addQuery(request);
+
+    // launch query machine
+    queryMachine.launch();
+
+    // get response data from machine
+    data = queryMachine.getResponse(0);
 
     //parse responses and return
     std::string lastQueryWarning;
@@ -1118,7 +835,6 @@ void Sphinx::Client_t::updateAttributes(const std::string &index,
                                         const AttributeUpdates_t &at)
 {
     Query_t data, request;
-    unsigned short responseVersion;
     uint32_t updatedCount;
 
     // build request
@@ -1130,8 +846,17 @@ void Sphinx::Client_t::updateAttributes(const std::string &index,
                 request);
     request << data;
 
-    // process request
-    responseVersion = processRequest(request, data);    
+    // initialize query polling machine
+    Sphinx::QueryMachine_t queryMachine(connection);
+
+    // put query into query machine
+    queryMachine.addQuery(request);
+
+    // launch query machine
+    queryMachine.launch();
+
+    // get response data from machine
+    data = queryMachine.getResponse(0);
 
     //parse response
     parseUpdateResponse_v0_9_8(data, updatedCount);
@@ -1149,7 +874,6 @@ std::vector<Sphinx::KeywordResult_t> Sphinx::Client_t::getKeywords(
     bool getWordStatistics)
 {
     Query_t data, request;
-    unsigned short responseVersion;
     std::vector<KeywordResult_t> result;
 
     // build request
@@ -1161,8 +885,17 @@ std::vector<Sphinx::KeywordResult_t> Sphinx::Client_t::getKeywords(
                 data.getLength(), request);
     request << data;
 
-    // process request
-    responseVersion = processRequest(request, data);    
+    // initialize query polling machine
+    Sphinx::QueryMachine_t queryMachine(connection);
+
+    // put query into query machine
+    queryMachine.addQuery(request);
+
+    // launch query machine
+    queryMachine.launch();
+
+    // get response data from machine
+    data = queryMachine.getResponse(0);
 
     //parse response
     parseKeywordsResponse_v0_9_8(data, result, getWordStatistics);

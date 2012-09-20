@@ -37,5 +37,5 @@
 
 includedir = @includedir@/sphinxclient
 
-include_HEADERS = sphinxclient.h sphinxclientquery.h error.h value.h globals.h globals_public.h filter.h
+include_HEADERS = sphinxclient.h sphinxclientquery.h error.h value.h globals.h globals_public.h
 

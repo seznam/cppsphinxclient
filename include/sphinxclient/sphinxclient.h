@@ -43,7 +43,7 @@
 
 #include <sphinxclient/sphinxclientquery.h>
 #include <sphinxclient/value.h>
-#include <sphinxclient/filter.h>
+#include <sphinxclient/globals_public.h>
 
 #include <sstream>
 #include <string>
@@ -63,8 +63,11 @@ namespace Sphinx
 
 class Query_t;
 class Client_t;
+class Filter_t;
 
 //------------------------------------------------------------------------------
+#define DEFAULT_CONNECT_RETRIES 1
+#define CONNECT_RETRY_WAIT_DEFAULT_MS 300
 // --------------------- configuration -----------------------------------------
 
 
@@ -158,26 +161,56 @@ enum GroupFunction_t { SPH_GROUPBY_DAY = 0,
 /** @brief Connection configuration object
  *
  *  keeps configuration data needed to connect to the searchd server, such as
- *  host, port, timeouts and keepalive flag
+ *  host, port, timeouts, keepalive flag and connection retry params.
+ *  WARNING: setting of keepalive is currently ignored (will be implemented
+ *           later)
  */
 
 class ConnectionConfig_t
 {
+    /// connection config data (hidden from interface, ABI stability)
+    struct PrivateData_t;
+    /// pointer to the connection config data
+    PrivateData_t *d;
 public:
-    std::string host;
-    unsigned short port;
-
-    bool keepAlive;
-    int32_t connectTimeout;
-    int32_t readTimeout;
-    int32_t writeTimeout;
-
+    /* @brief Contructor
+     * @param host host where the searchd runs
+     * @param port port what the searchd listens on
+     * @param keepAlive ignored, currently not supported
+     * @param connectTimeout max wait time for connection setup
+     * @param readTimeout max wait time on read from socket
+     *        (resets when something has been read)
+     * @param writeTimeout max wait time on write from socket
+     *        (resets when something has been written)
+     * @param connectRetriesCount nr of connect attempts
+     * @param connectRetryWait delay after failed connect attempt
+     */
     ConnectionConfig_t(const std::string &host = "localhost",
                        unsigned short port = 3312,
                        bool keepAlive = true,
-                       int32_t connectTimeout = 5000,
+                       int32_t connectTimeout = 1000,
                        int32_t readTimeout = 3000,
-                       int32_t writeTimeout = 3000);
+                       int32_t writeTimeout = 3000,
+                       int32_t connectRetriesCount = DEFAULT_CONNECT_RETRIES,
+                       int32_t connectRetryWait = CONNECT_RETRY_WAIT_DEFAULT_MS);
+    /* @brief copy constructor
+     */
+    ConnectionConfig_t(const ConnectionConfig_t &from);
+    /* @brief assignment operator
+     */
+    ConnectionConfig_t &operator=(const ConnectionConfig_t &from);
+
+    ~ConnectionConfig_t();
+    /* @brief getters and setters
+     */
+    const std::string &getHost() const;
+    unsigned short getPort() const;
+    bool getKeepAlive() const;
+    int32_t getConnectTimeout() const;
+    int32_t getReadTimeout() const;
+    int32_t getWriteTimeout() const;
+    int32_t getConnectRetriesCount() const;
+    int32_t getConnectRetryWait() const;
 };
 
 
@@ -217,6 +250,10 @@ struct SearchConfig_t
     /** Makes deep copy
       */
     void makeCopy(const SearchConfig_t &from);
+
+    /* Clears allocated data
+     */
+    void clear();
 
     /** desctructor
       */
@@ -663,10 +700,6 @@ class Client_t
 {
 public:
     Client_t(const ConnectionConfig_t &connectionSettings);
-    ~Client_t();
-
-    //! @brief close connection to the searchd
-    void close();
 
     /** @brief send a search query to the searchd
       *
@@ -741,24 +774,9 @@ public:
         const std::string &query,
         bool getWordStatistics = false);
 
-    void waitSocketReadable(const std::string &stage); 
-
 protected:
-    // ------- connect to / disconnect from the server
-    /** @brief create connection to the searchd and check protocol version
-      * @throws SphinxClientError_t on connection error or version mismatch
-      */
-
-    // -------- communication methods ----------
-    int receiveResponse(Query_t &buff, unsigned short &version);
-    void sendData(const Query_t &buff);
-    void connect();
-
-    unsigned short processRequest(const Query_t &query, Query_t &response);
     // -------- connection settings -----------------
     ConnectionConfig_t connection;
-
-    int socket_d;
 };//class
 
 }//namespace

@@ -60,9 +60,6 @@ enum FilterType_t {
                   };
 
 
-typedef std::vector<uint64_t> Int64Array_t;
-typedef std::vector<uint32_t> IntArray_t;
-
 /** @brief Attribute filter base class 
  *
  * Sucessors are RangeFilter and EnumFilter. exclude_flag is ignored

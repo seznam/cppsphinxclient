@@ -1,3 +1,13 @@
+libsphinxclient (2.0.0) unstable; urgency=low
+
+  * Binary incompatible, new version of debian package
+  * Obvious unnecessary things removed from public interface (filter data)
+  * Added configurable support for connection retry
+  * All networking handled newly by new layer QueryMachine_t (polling state
+    machine)
+
+ -- Vaclav Urbanek <vaclav.urbanek@firma.seznam.cz>  Thu, 20 Sep 2012 08:49:21 +0200
+
 libsphinxclient (1.4.0) unstable; urgency=low
 
   * added new type of multiquery, capable of optimizing subqueries,

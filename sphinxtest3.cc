@@ -52,7 +52,7 @@ int main()
         20000,       // read timeout
         2000         // write timeout
     );
-       
+
     Sphinx::Client_t connection(config);
     std::vector<Sphinx::Response_t> results;
     Sphinx::SearchConfig_t settings;

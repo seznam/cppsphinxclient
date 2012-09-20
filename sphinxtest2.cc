@@ -134,7 +134,9 @@ int main()
         true,        // keepalive
         2000,        // connect timeout
         20000,       // read timeout
-        2000         // write timeout
+        2000,        // write timeout
+        5,           // num retries
+        600          // delay between retries
     );
        
     Sphinx::Client_t connection(config);

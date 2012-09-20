@@ -148,9 +148,6 @@ private:
  * addQuery() after launch has been called.
  *
  */
-
-#define CONNECT_RETRY_WAIT_DEFAULT_MS 300
-
 class QueryMachine_t {
 
 
@@ -159,12 +156,8 @@ public:
      *
      * @param cconfig connection config
      */
-    QueryMachine_t(const ConnectionConfig_t &cconfig,
-                int connectRetriesCount = 0,
-                int connectRetryWait = CONNECT_RETRY_WAIT_DEFAULT_MS)
+    QueryMachine_t(const ConnectionConfig_t &cconfig)
         : cconfig(cconfig), ai(0x0), aip(0x0)
-        ,connectRetriesCount(connectRetriesCount)
-        ,connectRetryWait(connectRetryWait)
     {}
 
     /* @brief desctructor frees address info structures
@@ -324,10 +317,6 @@ private:
     /// nr of retries in case od connect timeout occured (for each query)
     /// 0 == disabled
     std::vector<int> connectRetries;
-    /// number of connect retries after connect timeout expired
-    int connectRetriesCount;
-    /// wait time between connect attempts (ms)
-    int connectRetryWait;
 };
 
 }//namespace

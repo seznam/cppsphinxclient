@@ -37,8 +37,7 @@ searchd --config sphinxtest.conf
 ../sphinxtest3 || (echo "./sphinxtest3 failed"; kill `cat searchd.pid`; exit -1) || exit -1
 #../mqtest
 
-
-#kill searchd
+# stop searchd
 kill `cat searchd.pid`
 
 echo "all tests passed."

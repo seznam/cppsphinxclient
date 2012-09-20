@@ -84,9 +84,6 @@ struct Query_t
     void clear();
     unsigned int getLength() const { return dataEndPtr-dataStartPtr; }
 
-    void read(int socket_d, int bytesToRead, Client_t &connection,
-              const std::string &stage);
-
     /** @brief reads data on readable socket
       *
       * @param socket_d socket to perform read on

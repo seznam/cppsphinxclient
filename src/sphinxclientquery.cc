@@ -93,15 +93,13 @@ Query_t &Query_t::operator= (const Query_t &val)
 {
 
     if (&val != this) {
+        delete [] data;
 
-        //printf("ggg3");
-        data = val.data;
         dataSize = val.dataSize;
         dataEndPtr = val.dataEndPtr;
         dataStartPtr = val.dataStartPtr;
         convertEndian = val.convertEndian;
 
-        delete [] data;
         data = new unsigned char[val.dataSize];
         memcpy(data, val.data, val.dataSize);
     }
@@ -325,64 +323,6 @@ Query_t &Query_t::operator >> (std::string &val)
 }//konec fce
 
    
-   
-void Query_t::read(int socket_d, int bytesToRead, Client_t &connection,
-                   const std::string &stage)
-{
-    // clear the buffer
-    clear();
-
-    while (bytesToRead > 0) {
-
-        // chceck the free space
-        int free_space = dataSize - dataEndPtr;
-        if (free_space <= 0) {
-            //message to large for this buffer, double the size
-            doubleSizeBuffer();
-            // recompute free space
-            free_space = dataSize - dataEndPtr;
-        }
-
-        // wait for readable socket, throws exception Sphinx::ConnectionError_t
-        connection.waitSocketReadable(stage);
-
-        // read data
-        int result = recv(socket_d, data + dataEndPtr,
-            (bytesToRead > free_space ? free_space : bytesToRead) ,0);
-
-        // debug print
-        //printf("result: %d bytes read, old endPtr=%d, new endPtr=%d, size=%d, space before=%d, space after=%d\n",
-        //        result, dataEndPtr, dataEndPtr+result, dataSize, free_space, free_space-result );
-
-        // readable socket, byt nothing to read (conenction closed) 
-        if (result == 0) {
-            throw Sphinx::ConnectionError_t(
-                stage +
-                strError("::recv error: connection closed"));
-        }
-        if (result < 0) {
-            if (errno == EINTR) {
-                // interrupted - try again
-                continue;
-            } else if (errno == EINPROGRESS) {
-                // blocking operation still in progress, try again after
-                // a few microsecs
-                usleep(10);
-                continue;
-            }
-
-            throw Sphinx::ConnectionError_t(
-                strError("recv error"));
-        }
-
-        dataEndPtr += result;
-        bytesToRead -= result;
-    }
-
-
-}
-
-
 int Query_t::readOnReadable(int socket_d, int &bytesToRead, const std::string &stage) {
 
     // check the free space
@@ -434,7 +374,6 @@ int Query_t::readOnReadable(int socket_d, int &bytesToRead, const std::string &s
 
     
 }
-
 
 
 int Query_t::writeOnWritable(int socket_d, unsigned int &bytesSent, const std::string &stage)

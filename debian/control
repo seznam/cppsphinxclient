@@ -9,10 +9,10 @@ Homepage: http://cppsphinxclient.sourceforge.net
 Package: libsphinxclient-dev
 Section: libdevel
 Architecture: any
-Depends: libsphinxclient4 (= ${binary:Version})
+Depends: libsphinxclient5 (= ${binary:Version})
 Description: C++ sphinx search client library development files.
 
-Package: libsphinxclient4
+Package: libsphinxclient5
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}

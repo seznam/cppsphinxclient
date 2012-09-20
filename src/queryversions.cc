@@ -41,6 +41,7 @@
 #include <sphinxclient/sphinxclientquery.h>
 #include <sphinxclient/error.h>
 #include <sphinxclient/globals.h>
+#include "filter.h"
 
 //-----------------------------------------------------------------------------
 

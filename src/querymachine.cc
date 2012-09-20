@@ -80,10 +80,12 @@ void Sphinx::QueryMachine_t::addQuery(const Query_t &query)
     qs.push_back(QS_WAIT_WR_CONNECT);
     bytesToRead.push_back(0);
     bytesWritten.push_back(0);
-    connectRetries.push_back(connectRetriesCount);
-    timeouts.push_back(cconfig.connectTimeout);
-    
-
+    connectRetries.push_back(cconfig.getConnectRetriesCount());
+    /*
+    printf("connect retries count %d, delay: %dms\n",
+        cconfig.getConnectRetriesCount(), cconfig.getConnectRetryWait());
+    */
+    timeouts.push_back(cconfig.getConnectTimeout());
 
     // connect
     int socket_d = setupConnection(cconfig, ai, aip);
@@ -223,7 +225,7 @@ int Sphinx::QueryMachine_t::setupConnection(
     if (!ai) {
         // address info not found
         std::ostringstream o;
-        o << cconfig.port;
+        o << cconfig.getPort();
 
         struct addrinfo hints;
 
@@ -237,11 +239,11 @@ int Sphinx::QueryMachine_t::setupConnection(
          hints.ai_next = NULL;
 
     
-        int ret = getaddrinfo(cconfig.host.c_str(), o.str().c_str(), &hints, &ai);
+        int ret = getaddrinfo(cconfig.getHost().c_str(), o.str().c_str(), &hints, &ai);
         if (ret != 0) {
             throw Sphinx::ConnectionError_t(
                                       std::string("Cannot resolve host '")
-                                      + cconfig.host + std::string("'."));
+                                      + cconfig.getHost() + std::string("'."));
         }
     } 
 
@@ -592,22 +594,22 @@ bool Sphinx::QueryMachine_t::finished() const
 
 void Sphinx::QueryMachine_t::setReadTimeout(size_t index)
 {
-    timeouts[index] = cconfig.readTimeout;
+    timeouts[index] = cconfig.getReadTimeout();
 }
 
 void Sphinx::QueryMachine_t::setWriteTimeout(size_t index)
 {
-    timeouts[index] = cconfig.writeTimeout;
+    timeouts[index] = cconfig.getWriteTimeout();
 }
 
 void Sphinx::QueryMachine_t::setConnectTimeout(size_t index)
 {
-    timeouts[index] = cconfig.connectTimeout;
+    timeouts[index] = cconfig.getConnectTimeout();
 }
 
 void Sphinx::QueryMachine_t::setRetryWaitTimeout(size_t index)
 {
-    timeouts[index] = connectRetryWait;
+    timeouts[index] = cconfig.getConnectRetryWait();
 }
 
 void Sphinx::QueryMachine_t::disableTimeout(size_t index)
