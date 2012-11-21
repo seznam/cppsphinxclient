@@ -1,8 +1,9 @@
 libsphinxclient (2.0.1) unstable; urgency=low
 
   * Interface for fetching filter data from search config.
+  * Method for validating objects of Value_t.
 
- -- Jan Kirschner <jan.kirschner@firma.seznam.cz>  Tue, 20 Nov 2012 11:17:31 +0100
+ -- Jan Kirschner <jan.kirschner@firma.seznam.cz>  Wed, 21 Nov 2012 12:21:01 +0100
 
 libsphinxclient (2.0.0) unstable; urgency=low
 

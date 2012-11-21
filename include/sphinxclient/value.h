@@ -89,6 +89,10 @@ public:
     //! @brief assignment, that performs deep copy of *value pointer
     Value_t & operator = (const Value_t&);
 
+    /** @brief check if contains a valid value.
+     */
+    inline bool isValid() const { return value; }
+
     /** @brief returns current type of Value_t
      *
      *  @return current value type. One of VALUETYPE_UINT32, VALUETYPE_FLOAT,
