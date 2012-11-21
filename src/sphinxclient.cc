@@ -337,6 +337,74 @@ void Sphinx::SearchConfig_t::addAttributeOverride(
     override.second[docId] = value;
 }//konec fce
 
+
+
+bool Sphinx::SearchConfig_t::getFilter(int index, std::string &attrname,
+        bool &exclude, float &minValue, float &maxValue) const
+{
+    // check index limits
+    if (index < 0 || (unsigned)index >= filters.size())
+        throw ClientUsageError_t("Filter index out of range.");
+
+    // check filter type
+    FloatRangeFilter_t *flt = dynamic_cast<FloatRangeFilter_t*>(filters[index]);
+    if (!flt)
+        return false;
+
+    // fetch data
+    attrname = flt->attrName;
+    exclude = flt->excludeFlag;
+    minValue = flt->minValue;
+    maxValue = flt->maxValue;
+    return true;
+}
+
+bool Sphinx::SearchConfig_t::getFilter(int index, std::string &attrname,
+        bool &exclude, uint64_t &minValue, uint64_t &maxValue) const
+{
+    // check index limits
+    if (index < 0 || (unsigned)index >= filters.size())
+        throw ClientUsageError_t("Filter index out of range.");
+
+    // check filter type
+    RangeFilter_t *flt = dynamic_cast<RangeFilter_t*>(filters[index]);
+    if (!flt)
+        return false;
+
+    // fetch data
+    attrname = flt->attrName;
+    exclude = flt->excludeFlag;
+    minValue = flt->minValue;
+    maxValue = flt->maxValue;
+    return true;
+}
+
+bool Sphinx::SearchConfig_t::getFilter(int index, std::string &attrname,
+        bool &exclude, Int64Array_t &values) const
+{
+    // check index limits
+    if (index < 0 || (unsigned)index >= filters.size())
+        throw ClientUsageError_t("Filter index out of range.");
+
+    // check filter type
+    EnumFilter_t *flt = dynamic_cast<EnumFilter_t*>(filters[index]);
+    if (!flt)
+        return false;
+
+    // fetch data
+    attrname = flt->attrName;
+    exclude = flt->excludeFlag;
+    values = flt->values;
+    return true;
+}
+
+
+
+
+
+
+
+
 //------------------------------------------------------------------------------
 
 struct SocketCloser_t

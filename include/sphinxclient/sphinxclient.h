@@ -304,6 +304,50 @@ struct SearchConfig_t
                               AttributeType_t attrType,
                               const std::map<uint64_t, Value_t> &values);
 
+    /** Get value of a float range filter added to specified position.
+     * If the filter at specified position is not of type float range,
+     * false is returned and output arguments remain unchanged.
+     * @param index Adding order of the filter (index to an array). If the index
+     *              is beyond the array borders, throw ClientUsageError_t.
+     * @param attrname Output argument, filter attribute name is filled in.
+     * @param exclude Output argument, filter inversion flag is filled in.
+     * @param minValue Output argument, range min value is filled in.
+     * @param maxValue Output argument, range max value is filled in.
+     * @return True, if the filter at specified position is of type float-range.
+     * @throw ClientUsageError_t When index is out of range.
+     */
+    bool getFilter(int index, std::string &attrname,
+            bool &exclude, float &minValue, float &maxValue) const;
+
+    /** Get value of a integer range filter added to specified position.
+     * If the filter at specified position is not of type integer range,
+     * false is returned and output arguments remain unchanged.
+     * @param index Adding order of the filter (index to an array). If the index
+     *              is beyond the array borders, throw ClientUsageError_t.
+     * @param attrname Output argument, filter attribute name is filled in.
+     * @param exclude Output argument, filter inversion flag is filled in.
+     * @param minValue Output argument, range min value is filled in.
+     * @param maxValue Output argument, range max value is filled in.
+     * @return True, if the filter at specified position is of type int-range.
+     * @throw ClientUsageError_t When index is out of range.
+     */
+    bool getFilter(int index, std::string &attrname,
+            bool &exclude, uint64_t &minValue, uint64_t &maxValue) const;
+
+    /** Get value of a enum filter added to specified position.
+     * If the filter at specified position is not of type enum,
+     * false is returned and output arguments remain unchanged.
+     * @param index Adding order of the filter (index to an array). If the index
+     *              is beyond the array borders, throw ClientUsageError_t.
+     * @param attrname Output argument, filter attribute name is filled in.
+     * @param exclude Output argument, filter inversion flag is filled in.
+     * @param minValue Output argument, array of filter values is filled in.
+     * @return True, if the filter at specified position is of type enum.
+     * @throw ClientUsageError_t When index is out of range.
+     */
+    bool getFilter(int index, std::string &attrname,
+            bool &exclude, Int64Array_t &values) const;
+
     uint32_t msgOffset; //!< @brief specifies, how many matches to skip
     uint32_t msgLimit;  //!< @brief specifies, how many matches to fetch
 

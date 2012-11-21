@@ -1,3 +1,9 @@
+libsphinxclient (2.0.1) unstable; urgency=low
+
+  * Interface for fetching filter data from search config.
+
+ -- Jan Kirschner <jan.kirschner@firma.seznam.cz>  Tue, 20 Nov 2012 11:17:31 +0100
+
 libsphinxclient (2.0.0) unstable; urgency=low
 
   * Binary incompatible, new version of debian package
