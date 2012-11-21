@@ -42,6 +42,7 @@
 
 #include <vector>
 #include <sphinxclient/error.h>
+#include <stdint.h>
 
 namespace Sphinx
 {
