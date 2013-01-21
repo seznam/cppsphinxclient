@@ -63,7 +63,7 @@
 
 #include "querymachine.h"
 #include "timer.h"
-        
+
 
 //------------------------------------------------------------------------------
 
@@ -198,21 +198,148 @@ int32_t Sphinx::ConnectionConfig_t::getConnectRetryWait() const
 
 //------------------------------------------------------------------------------
 
-Sphinx::SearchConfig_t::SearchConfig_t(SearchCommandVersion_t cmdVer):
-    msgOffset(0), msgLimit(20), minId(0), maxId(0), minTimestamp(0),
-    maxTimestamp(0xFFFFFFFF), minGroupId(0), maxGroupId(0xFFFFFFFF),
-    matchMode(SPH_MATCH_ALL), sortMode(SPH_SORT_RELEVANCE),
-    rankingMode(SPH_RANK_PROXIMITY_BM25),
-    sortBy(""), groupBy(""), groupFunction(SPH_GROUPBY_DAY), maxMatches(1000),
-    groupSort("@group desc"), commandVersion(cmdVer), indexes("*"),
-    searchCutOff(0), distRetryCount(0), distRetryDelay(0), maxQueryTime(0),
-    selectClause("*")
+
+namespace Sphinx {
+    struct SearchConfig_t::Dptr_t
+    {
+        void makeCopy(const Dptr_t &from)
+        {
+            msgOffset = from.msgOffset;
+            msgLimit = from.msgLimit;
+            matchMode = from.matchMode;
+            sortMode = from.sortMode;
+            rankingMode = from.rankingMode;
+            sortBy = from.sortBy;
+            groupBy = from.groupBy;
+            groupFunction = from.groupFunction;
+            maxMatches = from.maxMatches;
+            groupSort = from.groupSort;
+            commandVersion = from.commandVersion;
+            indexes = from.indexes;
+            searchCutOff = from.searchCutOff;
+            distRetryCount = from.distRetryCount;
+            distRetryDelay = from.distRetryDelay;
+            groupDistinctAttribute = from.groupDistinctAttribute;
+            anchorPoints = from.anchorPoints;
+            indexWeights = from.indexWeights;
+            maxQueryTime = from.maxQueryTime;
+            fieldWeights = from.fieldWeights;
+            queryComment = from.queryComment;
+            selectClause = from.selectClause;
+            attributeOverrides = from.attributeOverrides;
+            /* handle filters*/
+            for (std::vector<Filter_t *>::const_iterator i = from.filters.begin();
+                i != from.filters.end(); i++)
+            {
+                filters.push_back((*i)->clone());
+            }
+            rankingExpr = from.rankingExpr;
+        }
+
+        void clear() {
+            // handle filters
+            for (std::vector<Filter_t *>::const_iterator i = filters.begin();
+                i != filters.end(); i++)
+            {
+                delete *i;
+            }
+        }
+
+        Dptr_t(SearchCommandVersion_t cmdVer) :
+            msgOffset(0), msgLimit(20),
+            matchMode(SPH_MATCH_ALL), sortMode(SPH_SORT_RELEVANCE),
+            rankingMode(SPH_RANK_PROXIMITY_BM25),
+            sortBy(""), groupBy(""), groupFunction(SPH_GROUPBY_DAY), maxMatches(1000),
+            groupSort("@group desc"), commandVersion(cmdVer), indexes("*"),
+            searchCutOff(0), distRetryCount(0), distRetryDelay(0), maxQueryTime(0),
+            selectClause("*")
+        {}
+
+        Dptr_t(const Dptr_t &from) {
+            makeCopy(from);
+        }
+
+        ~Dptr_t() {
+            clear();
+        }
+
+        Dptr_t &operator = (const Dptr_t &from) {
+            if (&from != this) {
+                clear();
+                makeCopy(from);
+            }
+            return *this;
+        }
+
+
+        uint32_t msgOffset; //!< @brief specifies, how many matches to skip
+        uint32_t msgLimit;  //!< @brief specifies, how many matches to fetch
+
+        //! @brief query matching mode (default SPH_MATCH_ALL)
+        MatchMode_t matchMode;
+        //! @brief result sorting mode (default SPH_SORT_RELEVANCE)
+        SortMode_t sortMode;
+        //! @brief fulltext ranking mode (default SPH_RANK_PROXIMITY_BM25)
+        //         since version 113
+        RankingMode_t rankingMode;
+
+        std::string sortBy;          //!< @brief which columns to sort the result by
+        std::string groupBy;        //!< @brief which columns to group the result by
+        //! @brief group function - fetch the match with greatest relevance per
+        //!        group
+        GroupFunction_t groupFunction;
+        int maxMatches;  //!< @brief maximum matches to search for
+
+        std::string groupSort; //!< $brief group-by sorting clause (to sort groups in result set with)
+        std::vector<Filter_t *> filters; //!< $brief array to hold attribute filter (range, enum)
+
+        //! @brief Command version - allowed values are 0x101, 0x104, 0x107, 0x113, 0x116
+        SearchCommandVersion_t commandVersion;
+        //! @brief Index file names to search in
+        std::string indexes;
+
+        //----- od verze query 113 -----
+        //! @brief stop searching after cutoff matches (default 0 - disabled)
+        int32_t searchCutOff;
+        //! @brief distributed search retry count and delay
+        int32_t distRetryCount, distRetryDelay;
+        //! @brief count-distinct attribute (its name) for group-by query
+        std::string groupDistinctAttribute;
+
+        //! @brief anchor points to do distance sorting
+        std::vector<GeoAnchorPoint_t> anchorPoints;
+
+        //! @brief per index weights (map of index name to index weight)
+        std::map<std::string, uint32_t> indexWeights;
+        //! @brief max query duration, milliseconds (default is 0, do not limit)
+        int32_t maxQueryTime;
+        //! @brief per field weights (map of field name to field weight)
+        std::map<std::string, uint32_t> fieldWeights;
+        //! @brief query comment
+        std::string queryComment;
+
+        //! @brief select columns to fetch in SQL-like select syntax. Available
+        //         aggregation functions are MIN, MAX, SUM, AVG. AS is required
+        std::string selectClause;
+        //! @brief attribute overrides - map attrName->(attrType, map docId->attrValue)
+        AttributeOverrides_t attributeOverrides;
+
+        //! @brief Expression for match ranking. Used with SPH_RANK_EXPR only.
+        std::string rankingExpr;
+    };
+}//namespace
+
+
+
+Sphinx::SearchConfig_t::SearchConfig_t(SearchCommandVersion_t cmdVer)
+    : dptr(new Dptr_t(cmdVer))
 {}
 
 
 Sphinx::SearchConfig_t::SearchConfig_t(const Sphinx::SearchConfig_t &from)
 {
-    makeCopy(from);
+    delete dptr;
+    dptr = new Dptr_t(*(from.dptr));
 }
 
 
@@ -220,98 +347,43 @@ Sphinx::SearchConfig_t &Sphinx::SearchConfig_t::operator= (
     const Sphinx::SearchConfig_t &from)
 {
     if (&from != this) {
-        clear();
-        makeCopy(from);
+        delete dptr;
+        dptr = new Dptr_t(*(from.dptr));
     }
     return *this;
 }
 
-void Sphinx::SearchConfig_t::makeCopy(const Sphinx::SearchConfig_t &from) 
-{
-    msgOffset = from.msgOffset;
-    msgLimit = from.msgLimit;
-    minId = from.minId;
-    maxId = from.maxId;
-    minTimestamp = from.minTimestamp;
-    maxTimestamp = from.maxTimestamp;
-    minGroupId = from.minGroupId;
-    maxGroupId = from.maxGroupId;
-    matchMode = from.matchMode;
-    sortMode = from.sortMode;
-    rankingMode = from.rankingMode;
-    weights = from.weights;
-    groups = from.groups;
-    sortBy = from.sortBy;
-    minValue = from.minValue;
-    maxValue = from.maxValue;
-    filter = from.filter;
-    groupBy = from.groupBy;
-    groupFunction = from.groupFunction;
-    maxMatches = from.maxMatches;
-    groupSort = from.groupSort;
-    commandVersion = from.commandVersion;
-    indexes = from.indexes;
-    searchCutOff = from.searchCutOff;
-    distRetryCount = from.distRetryCount;
-    distRetryDelay = from.distRetryDelay;
-    groupDistinctAttribute = from.groupDistinctAttribute;
-    anchorPoints = from.anchorPoints;
-    indexWeights = from.indexWeights;
-    maxQueryTime = from.maxQueryTime;
-    fieldWeights = from.fieldWeights;
-    queryComment = from.queryComment;
-    selectClause = from.selectClause;
-    attributeOverrides = from.attributeOverrides;
-    /* handle filters*/
-    for (std::vector<Filter_t *>::const_iterator i = from.filters.begin();
-        i != from.filters.end(); i++)
-    {
-        filters.push_back((*i)->clone());
-    }
-}
 
 Sphinx::SearchConfig_t::~SearchConfig_t() {
-    clear();
-}
-
-void Sphinx::SearchConfig_t::clear() {
-    // handle filters
-    for (std::vector<Filter_t *>::const_iterator i = filters.begin();
-        i != filters.end(); i++)
-    {
-        delete *i;
-    }
+    delete dptr;
 }
 
 
-void Sphinx::SearchConfig_t::addRangeFilter(std::string attrName, uint64_t minValue,
-                                       uint64_t maxValue,
-                                       bool excludeFlag)
+void Sphinx::SearchConfig_t::addRangeFilter(const std::string &attrName,
+        uint64_t minValue, uint64_t maxValue, bool excludeFlag)
 {
-    this->filters.push_back(new RangeFilter_t(attrName, minValue,
+    dptr->filters.push_back(new RangeFilter_t(attrName, minValue,
                                           maxValue, excludeFlag));
 }
 
-void Sphinx::SearchConfig_t::addEnumFilter(std::string attrName,
-                                      const Int64Array_t &values,
-                                      bool excludeFlag)
+void Sphinx::SearchConfig_t::addEnumFilter(const std::string &attrName,
+        const Int64Array_t &values, bool excludeFlag)
 {
-    this->filters.push_back(new EnumFilter_t(attrName, values,
+    dptr->filters.push_back(new EnumFilter_t(attrName, values,
                                          excludeFlag));
 }
 
-void Sphinx::SearchConfig_t::addEnumFilter(std::string attrName,
-                                      const IntArray_t &values,
-                                      bool excludeFlag)
+void Sphinx::SearchConfig_t::addEnumFilter(const std::string &attrName,
+        const IntArray_t &values, bool excludeFlag)
 {
-    this->filters.push_back(new EnumFilter_t(attrName, values,
+    dptr->filters.push_back(new EnumFilter_t(attrName, values,
                                          excludeFlag));
 }
 
-void Sphinx::SearchConfig_t::addFloatRangeFilter(std::string attrName,
-    float minValue, float maxValue, bool excludeFlag)
+void Sphinx::SearchConfig_t::addFloatRangeFilter(const std::string &attrName,
+        float minValue, float maxValue, bool excludeFlag)
 {
-    this->filters.push_back(new FloatRangeFilter_t(attrName, minValue,
+    dptr->filters.push_back(new FloatRangeFilter_t(attrName, minValue,
                                                    maxValue, excludeFlag));
 }
 
@@ -320,7 +392,7 @@ void Sphinx::SearchConfig_t::addAttributeOverride(
                                  AttributeType_t attrType,
                                  const std::map<uint64_t, Value_t> &values)
 {
-    attributeOverrides[attrName] = std::make_pair(attrType, values);
+    dptr->attributeOverrides[attrName] = std::make_pair(attrType, values);
 }//konec fce
 
 void Sphinx::SearchConfig_t::addAttributeOverride(
@@ -330,7 +402,7 @@ void Sphinx::SearchConfig_t::addAttributeOverride(
 {
     // get or insert attribute entry
     std::pair<AttributeType_t, std::map<uint64_t, Value_t> >
-        &override = attributeOverrides[attrName];
+        &override = dptr->attributeOverrides[attrName];
 
     // update the entry
     override.first = attrType;
@@ -343,11 +415,11 @@ bool Sphinx::SearchConfig_t::getFilter(int index, std::string &attrname,
         bool &exclude, float &minValue, float &maxValue) const
 {
     // check index limits
-    if (index < 0 || (unsigned)index >= filters.size())
+    if (index < 0 || (unsigned)index >= dptr->filters.size())
         throw ClientUsageError_t("Filter index out of range.");
 
     // check filter type
-    FloatRangeFilter_t *flt = dynamic_cast<FloatRangeFilter_t*>(filters[index]);
+    FloatRangeFilter_t *flt = dynamic_cast<FloatRangeFilter_t*>(dptr->filters[index]);
     if (!flt)
         return false;
 
@@ -363,11 +435,11 @@ bool Sphinx::SearchConfig_t::getFilter(int index, std::string &attrname,
         bool &exclude, uint64_t &minValue, uint64_t &maxValue) const
 {
     // check index limits
-    if (index < 0 || (unsigned)index >= filters.size())
+    if (index < 0 || (unsigned)index >= dptr->filters.size())
         throw ClientUsageError_t("Filter index out of range.");
 
     // check filter type
-    RangeFilter_t *flt = dynamic_cast<RangeFilter_t*>(filters[index]);
+    RangeFilter_t *flt = dynamic_cast<RangeFilter_t*>(dptr->filters[index]);
     if (!flt)
         return false;
 
@@ -383,11 +455,11 @@ bool Sphinx::SearchConfig_t::getFilter(int index, std::string &attrname,
         bool &exclude, Int64Array_t &values) const
 {
     // check index limits
-    if (index < 0 || (unsigned)index >= filters.size())
+    if (index < 0 || (unsigned)index >= dptr->filters.size())
         throw ClientUsageError_t("Filter index out of range.");
 
     // check filter type
-    EnumFilter_t *flt = dynamic_cast<EnumFilter_t*>(filters[index]);
+    EnumFilter_t *flt = dynamic_cast<EnumFilter_t*>(dptr->filters[index]);
     if (!flt)
         return false;
 
@@ -399,8 +471,190 @@ bool Sphinx::SearchConfig_t::getFilter(int index, std::string &attrname,
 }
 
 
+unsigned Sphinx::SearchConfig_t::getFilterCount() const {
+    return dptr->filters.size();
+}
+
+const Sphinx::Filter_t *Sphinx::SearchConfig_t::getFilter(int index) const {
+    // check index limits
+    if (index < 0 || (unsigned)index >= dptr->filters.size())
+        throw ClientUsageError_t("Filter index out of range.");
+
+    return dptr->filters[index];
+}
+
+Sphinx::SearchCommandVersion_t Sphinx::SearchConfig_t::getCommandVersion() const {
+    return dptr->commandVersion;
+}
+
+void Sphinx::SearchConfig_t::setPaging(uint32_t msgOffset, uint32_t msgLimit) {
+    dptr->msgLimit = msgLimit;
+    dptr->msgOffset = msgOffset;
+}
+
+void Sphinx::SearchConfig_t::setMatchMode(MatchMode_t matchMode) {
+    dptr->matchMode = matchMode;
+}
+
+void Sphinx::SearchConfig_t::setSorting(
+        SortMode_t sortMode, const std::string &sortBy) {
+    dptr->sortMode = sortMode;
+    dptr->sortBy = sortBy;
+}
+
+void Sphinx::SearchConfig_t::setRanking(
+        RankingMode_t rankingMode, const std::string &rankExpr) {
+    dptr->rankingMode = rankingMode;
+    dptr->rankingExpr = rankExpr;
+}
+
+void Sphinx::SearchConfig_t::setGrouping(
+        GroupFunction_t groupFunction,
+        const std::string &groupBy,
+        const std::string &groupSort) {
+    dptr->groupFunction = groupFunction;
+    dptr->groupBy = groupBy;
+    dptr->groupSort = groupSort;
+}
+
+void Sphinx::SearchConfig_t::setGroupDistinctAttribute(
+        const std::string &attributeName) {
+    dptr->groupDistinctAttribute = attributeName;
+}
+
+void Sphinx::SearchConfig_t::setMaxMatches(int maxMatches) {
+    dptr->maxMatches = maxMatches;
+}
+
+void Sphinx::SearchConfig_t::setMaxQueryTime(int32_t maxQueryTime) {
+    dptr->maxQueryTime = maxQueryTime;
+}
+
+void Sphinx::SearchConfig_t::setSearchedIndexes(const std::string &indexNames) {
+    dptr->indexes = indexNames;
+}
+
+void Sphinx::SearchConfig_t::setIndexWeight(
+        const std::string &indexName, uint32_t weight) {
+    dptr->indexWeights[indexName] = weight;
+}
+
+void Sphinx::SearchConfig_t::setFieldWeight(
+        const std::string &fieldName, uint32_t weight) {
+    dptr->fieldWeights[fieldName] = weight;
+}
+
+void Sphinx::SearchConfig_t::setSearchCutoff(int32_t searchCutOff) {
+    dptr->searchCutOff = searchCutOff;
+}
+
+void Sphinx::SearchConfig_t::setRetries(
+        int32_t distRetryCount, int32_t distRetryDelay) {
+    dptr->distRetryCount = distRetryCount;
+    dptr->distRetryDelay = distRetryDelay;
+}
+
+void Sphinx::SearchConfig_t::setGeoAnchorPoints(
+        const std::vector<GeoAnchorPoint_t> &anchorPoints) {
+    dptr->anchorPoints = anchorPoints;
+}
+
+void Sphinx::SearchConfig_t::setQueryComment(const std::string &queryComment) {
+    dptr->queryComment = queryComment;
+}
+
+void Sphinx::SearchConfig_t::setSelectClause(const std::string &selectClause) {
+    dptr->selectClause = selectClause;
+}
 
 
+uint32_t Sphinx::SearchConfig_t::getPagingOffset() const {
+    return dptr->msgOffset;
+}
+
+uint32_t Sphinx::SearchConfig_t::getPagingLimit() const {
+    return dptr->msgLimit;
+}
+
+Sphinx::MatchMode_t Sphinx::SearchConfig_t::getMatchMode() const {
+    return dptr->matchMode;
+}
+
+Sphinx::SortMode_t Sphinx::SearchConfig_t::getSortingMode() const {
+    return dptr->sortMode;
+}
+
+const std::string &Sphinx::SearchConfig_t::getSortingExpr() const {
+    return dptr->sortBy;
+}
+
+Sphinx::RankingMode_t Sphinx::SearchConfig_t::getRankingMode() const {
+    return dptr->rankingMode;
+}
+
+const std::string &Sphinx::SearchConfig_t::getRankingExpr() const {
+    return dptr->rankingExpr;
+}
+
+Sphinx::GroupFunction_t Sphinx::SearchConfig_t::getGroupingFunction() const {
+    return dptr->groupFunction;
+}
+const std::string &Sphinx::SearchConfig_t::getGroupByExpr() const {
+    return dptr->groupBy;
+}
+const std::string &Sphinx::SearchConfig_t::getGroupSortExpr() const {
+    return dptr->groupSort;
+}
+const std::string &Sphinx::SearchConfig_t::getGroupDistinctAttribute() const {
+    return dptr->groupDistinctAttribute;
+}
+
+int Sphinx::SearchConfig_t::getMaxMatches() const {
+    return dptr->maxMatches;
+}
+uint32_t Sphinx::SearchConfig_t::getMaxQueryTime() const {
+    return dptr->maxQueryTime;
+}
+
+const std::string &Sphinx::SearchConfig_t::getSearchedIndexes() const {
+    return dptr->indexes;
+}
+const std::map<std::string, uint32_t> &
+Sphinx::SearchConfig_t::getIndexWeights() const {
+    return dptr->indexWeights;
+}
+const std::map<std::string, uint32_t> &
+Sphinx::SearchConfig_t::getFieldWeights() const {
+    return dptr->fieldWeights;
+}
+
+int32_t Sphinx::SearchConfig_t::getSearchCutoff() const {
+    return dptr->searchCutOff;
+}
+int32_t Sphinx::SearchConfig_t::getDistRetryCount() const {
+    return dptr->distRetryCount;
+}
+int32_t Sphinx::SearchConfig_t::getDistRetryDelay() const {
+    return dptr->distRetryDelay;
+}
+
+const std::vector<Sphinx::GeoAnchorPoint_t> &
+Sphinx::SearchConfig_t::getGeoAnchorPoints() const {
+    return dptr->anchorPoints;
+}
+
+const std::string &Sphinx::SearchConfig_t::getQueryComment() const {
+    return dptr->queryComment;
+}
+
+const std::string &Sphinx::SearchConfig_t::getSelectClause() const {
+    return dptr->selectClause;
+}
+
+const Sphinx::SearchConfig_t::AttributeOverrides_t &
+Sphinx::SearchConfig_t::getAttributeOverrides() const {
+    return dptr->attributeOverrides;
+}
 
 
 
@@ -464,7 +718,7 @@ void Sphinx::MultiQuery_t::addQuery(const std::string& query,
                                     const SearchConfig_t &queryAttr)
 {
     // query attr command version must match query command version
-    if(commandVersion != queryAttr.commandVersion)
+    if(commandVersion != queryAttr.getCommandVersion())
         throw ClientUsageError_t("multiQuery version does not match "
                                  "added query version.");
 
@@ -508,7 +762,7 @@ void Sphinx::MultiQueryOpt_t::addQuery(const std::string& query,
                                     const SearchConfig_t &queryAttr)
 {
     // query attr command version must match query command version
-    if(commandVersion != queryAttr.commandVersion)
+    if(commandVersion != queryAttr.getCommandVersion())
         throw ClientUsageError_t("multiQuery version does not match "
                                  "added query version.");
 
@@ -601,7 +855,7 @@ struct QuerySorter_t {
 void Sphinx::MultiQueryOpt_t::optimise() {
 
     // disable optimisation for older protocols
-    if (commandVersion < VER_COMMAND_SEARCH_0_9_8) {
+    if (commandVersion < VER_COMMAND_SEARCH_0_9_9) {
         //printf("optimisation disabled, old command version\n");
         return;
     }
@@ -660,12 +914,11 @@ Sphinx::SourceQuery_t::SourceQuery_t(const std::string &query,
     // compute hash
     std::ostringstream o;
     o << query << "\t"
-      << attr.selectClause << "\t"
-      << attr.matchMode << "\t";
+      << attr.getSelectClause() << "\t"
+      << attr.getMatchMode() << "\t";
     // add filters to hash
-    for (std::vector<Filter_t *>::const_iterator i = attr.filters.begin();
-            i != attr.filters.end(); i++) {
-        o << **i << "\t";
+    for (unsigned i = 0; i < attr.getFilterCount(); ++i) {
+        o << *attr.getFilter(i) << "\t";
     }
     hash = o.str();
 }
@@ -688,8 +941,8 @@ void Sphinx::Client_t::query(const std::string& query,
 
     //-------------------build query---------------
     buildQueryVersion(query, attrs, data);
-    buildHeader(SEARCHD_COMMAND_SEARCH, attrs.commandVersion, data.getLength(),
-                request);
+    buildHeader(SEARCHD_COMMAND_SEARCH, attrs.getCommandVersion(),
+            data.getLength(), request);
     request << data;
 
     // initialize query polling machine
@@ -701,10 +954,10 @@ void Sphinx::Client_t::query(const std::string& query,
     // launch query machine
     queryMachine.launch();
 
-    Query_t responseData = queryMachine.getResponse(0); 
+    Query_t responseData = queryMachine.getResponse(0);
 
     //--------- parse response -------------------
-    parseResponseVersion(responseData, attrs.commandVersion, response);
+    parseResponseVersion(responseData, attrs.getCommandVersion(), response);
 }//konec fce
 
 void Sphinx::Client_t::query(const MultiQueryOpt_t &mq,

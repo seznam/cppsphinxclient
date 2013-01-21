@@ -72,8 +72,7 @@ struct Filter_t
 {
     Filter_t();
 
-    virtual void dumpToBuff(Sphinx::Query_t &data,
-                            const Sphinx::SearchCommandVersion_t &v) const = 0;
+    virtual void dumpToBuff(Sphinx::Query_t &data) const = 0;
 
     /* @brief print current 
      *
@@ -105,8 +104,7 @@ struct RangeFilter_t : public Filter_t
 {
     RangeFilter_t(std::string attrName, uint32_t minValue,
                   uint32_t maxValue, bool excludeFlag=false);
-    void dumpToBuff(Sphinx::Query_t &data,
-                    const Sphinx::SearchCommandVersion_t &v) const;
+    void dumpToBuff(Sphinx::Query_t &data) const;
     virtual std::ostream & print(std::ostream &o) const;
     virtual Filter_t * clone() const;
 
@@ -126,8 +124,7 @@ struct EnumFilter_t : public Filter_t {
                  bool excludeFlag = false);
     EnumFilter_t(std::string attrName, const IntArray_t &values,
                  bool excludeFlag = false);
-    void dumpToBuff(Sphinx::Query_t &data,
-                    const Sphinx::SearchCommandVersion_t &v) const;
+    void dumpToBuff(Sphinx::Query_t &data) const;
     virtual std::ostream & print(std::ostream &o) const;
     virtual Filter_t * clone() const;
 
@@ -143,8 +140,7 @@ struct FloatRangeFilter_t : public Filter_t {
 
     FloatRangeFilter_t(std::string attrName, float minValue, float maxValue,
                  bool excludeFlag = false);
-    void dumpToBuff(Sphinx::Query_t &data,
-                    const Sphinx::SearchCommandVersion_t &v) const;
+    void dumpToBuff(Sphinx::Query_t &data) const;
     virtual std::ostream & print(std::ostream &o) const;
     virtual Filter_t * clone() const;
 

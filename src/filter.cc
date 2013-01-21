@@ -68,38 +68,13 @@ std::ostream & Sphinx::RangeFilter_t::print(std::ostream &o) const
 }
 
 
-void Sphinx::RangeFilter_t::dumpToBuff(Sphinx::Query_t &data,
-                                const Sphinx::SearchCommandVersion_t &v) const
+void Sphinx::RangeFilter_t::dumpToBuff(Sphinx::Query_t &data) const
 {
-    switch(v) {
-        case VER_COMMAND_SEARCH_0_9_7_1:
-            data << attrName;
-            data << (uint32_t) 0
-                 << (uint32_t) minValue
-                 << (uint32_t) maxValue;
-            data << (uint32_t) excludeFlag;
-            break;
-
-        case VER_COMMAND_SEARCH_0_9_8:
-            data << attrName;
-            data << (uint32_t) SPH_FILTER_RANGE
-                 << (uint32_t) minValue
-                 << (uint32_t) maxValue;
-            data << (uint32_t) excludeFlag;
-            break;
-
-        case VER_COMMAND_SEARCH_0_9_9:
-            data << attrName;
-            data << (uint32_t) SPH_FILTER_RANGE
-                 << (uint64_t) minValue
-                 << (uint64_t) maxValue;
-            data << (uint32_t) excludeFlag;
-            break;
-
-        default:
-            //incompatible modes
-            break;
-    }//switch
+    data << attrName;
+    data << (uint32_t) SPH_FILTER_RANGE
+         << (uint64_t) minValue
+         << (uint64_t) maxValue;
+    data << (uint32_t) excludeFlag;
 }
 
 Sphinx::Filter_t * Sphinx::RangeFilter_t::clone() const
@@ -141,49 +116,17 @@ std::ostream & Sphinx::EnumFilter_t::print(std::ostream &o) const
     return o;
 }
 
-void Sphinx::EnumFilter_t::dumpToBuff(Sphinx::Query_t &data,
-                               const Sphinx::SearchCommandVersion_t &v) const
+void Sphinx::EnumFilter_t::dumpToBuff(Sphinx::Query_t &data) const
 {
-    switch(v) {
-        case VER_COMMAND_SEARCH_0_9_7_1:
-            data << attrName;
-            data << (uint32_t) values.size();
-            for (Sphinx::Int64Array_t::const_iterator val = values.begin();
-                 val != values.end(); val++)
-            {
-                data << (uint32_t)(*val);
-            }
-            data << (uint32_t) excludeFlag;
-            break;
-
-        case VER_COMMAND_SEARCH_0_9_8:
-            data << attrName;
-            data << (uint32_t) SPH_FILTER_VALUES;
-            data << (uint32_t) values.size();
-            for (Sphinx::Int64Array_t::const_iterator val = values.begin();
-                 val != values.end(); val++)
-            {
-                data << (uint32_t)(*val);
-            }
-            data << (uint32_t) excludeFlag;
-            break;
-
-        case VER_COMMAND_SEARCH_0_9_9:
-            data << attrName;
-            data << (uint32_t) SPH_FILTER_VALUES;
-            data << (uint32_t) values.size();
-            for (Sphinx::Int64Array_t::const_iterator val = values.begin();
-                 val != values.end(); val++)
-            {
-                data << (uint64_t)(*val);
-            }
-            data << (uint32_t) excludeFlag;
-            break;
-
-        default:
-            //incompatible modes
-            break;
-    }//switch
+    data << attrName;
+    data << (uint32_t) SPH_FILTER_VALUES;
+    data << (uint32_t) values.size();
+    for (Sphinx::Int64Array_t::const_iterator val = values.begin();
+         val != values.end(); val++)
+    {
+        data << (uint64_t)(*val);
+    }
+    data << (uint32_t) excludeFlag;
 };
 
 Sphinx::Filter_t * Sphinx::EnumFilter_t::clone() const
@@ -206,17 +149,13 @@ std::ostream & Sphinx::FloatRangeFilter_t::print(std::ostream &o) const
     return o;
 }
 
-void Sphinx::FloatRangeFilter_t::dumpToBuff(Sphinx::Query_t &data,
-                                const Sphinx::SearchCommandVersion_t &v) const
+void Sphinx::FloatRangeFilter_t::dumpToBuff(Sphinx::Query_t &data) const
 {
-        //unsupported in previous versions, does not work 
-        if(v >= VER_COMMAND_SEARCH_0_9_8) {
-            data << attrName;
-            data << (uint32_t) SPH_FILTER_FLOATRANGE
-                 << minValue //as float values
-                 << maxValue;
-            data << (uint32_t) excludeFlag;
-        }//else
+    data << attrName;
+    data << (uint32_t) SPH_FILTER_FLOATRANGE
+         << minValue //as float values
+         << maxValue;
+    data << (uint32_t) excludeFlag;
 }
 
 Sphinx::Filter_t * Sphinx::FloatRangeFilter_t::clone() const

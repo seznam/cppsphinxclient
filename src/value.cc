@@ -82,6 +82,10 @@ public:
         throw ValueTypeError_t(std::string("Value is of type ")
                 + valueTypeString[type] + " but requested is uint64_t.");
     }
+    virtual operator const std::string & () const {
+        throw ValueTypeError_t(std::string("Value is of type ")
+                + valueTypeString[type] + " but requested is string.");
+    }
 };//class
 
 
@@ -142,6 +146,20 @@ public:
     virtual operator uint64_t () const { return value; }
 };//class
 
+class ValueString_t : public ValueBase_t
+{
+protected:
+	std::string value;
+
+public:
+    ValueString_t(const std::string &val = std::string())
+        : ValueBase_t(VALUETYPE_STRING), value(val) {}
+    ValueString_t(const ValueString_t &val)
+        : ValueBase_t(val), value(val.value) {}
+
+    virtual operator const std::string & () const { return value; }
+};//class
+
 }//namespace
 
 //----------------------------------------------------------------------
@@ -155,6 +173,7 @@ Value_t::Value_t(float v) : value(new ValueFloat_t(v)) {}
 Value_t::Value_t(const std::vector<Value_t> &v)
     : value(new ValueVector_t(v)) {}
 Value_t::Value_t(uint64_t v) : value(new ValueUInt64_t(v)) {}
+Value_t::Value_t(const std::string &v) : value(new ValueString_t(v)) {}
 
 void Value_t::makeCopy(const Value_t &v)
 {
@@ -171,6 +190,9 @@ void Value_t::makeCopy(const Value_t &v)
                 break;
             case VALUETYPE_UINT64:
                 value = new ValueUInt64_t(*(ValueUInt64_t*)v.value);
+                break;
+            case VALUETYPE_STRING:
+                value = new ValueString_t(*(ValueString_t*)v.value);
                 break;
         }//switch
     }//if
@@ -215,5 +237,10 @@ Value_t::operator float () const throw (ValueTypeError_t)
 Value_t::operator uint64_t () const throw (ValueTypeError_t)
 {
     return (uint64_t)(*value);
+}
+
+Value_t::operator const std::string & () const throw (ValueTypeError_t)
+{
+    return (const std::string &)(*value);
 }
 

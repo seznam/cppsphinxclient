@@ -129,7 +129,10 @@ enum RankingMode_t { //! @brief default mode, phrase proximity major factor and
                      SPH_RANK_MATCHANY = 5,
                      //! @brief relevance is 32bit mask with bit for each field
                      //         set to 1 when a keyword is located there
-                     SPH_RANK_FIELDMASK = 6
+                     SPH_RANK_FIELDMASK = 6,
+                     SPH_RANK_SPH04 = 7,
+                     SPH_RANK_EXPR = 8,
+                     SPH_RANK_TOTAL = 9
                    };
 
 /** @brief Result attribute types
@@ -143,7 +146,11 @@ enum AttributeType_t { SPH_ATTR_INTEGER = 1,     //!< @brief int attribute type
                        SPH_ATTR_BOOL = 4,        //!< @brief boolean attribute
                        SPH_ATTR_FLOAT = 5,       //!< @brief float attribute
                        SPH_ATTR_BIGINT = 6,      //!< @brief uint64 attribute
-                       SPH_ATTR_MULTI = 0x40000000 }; //!< @brief
+                       SPH_ATTR_STRING = 7,
+                       SPH_ATTR_MULTI_FLAG = 0x40000000,
+                       SPH_ATTR_MULTI = SPH_ATTR_MULTI_FLAG | 1,
+                       SPH_ATTR_MULTI64 = SPH_ATTR_MULTI_FLAG | 2
+                     };
 
 /** @brief Grouping functions
  *
@@ -247,43 +254,39 @@ struct SearchConfig_t
       */
     SearchConfig_t &operator= (const SearchConfig_t &from);
 
-    /** Makes deep copy
-      */
-    void makeCopy(const SearchConfig_t &from);
-
-    /* Clears allocated data
+    /**
+     * Initialize with default filters
      */
-    void clear();
+    SearchConfig_t(SearchCommandVersion_t cmdVer = VER_COMMAND_SEARCH_2_0_5);
 
-    /** desctructor
-      */
+    /**
+     * Destructor.
+     */
     ~SearchConfig_t();
-
-    SearchConfig_t(SearchCommandVersion_t cmdVer = VER_COMMAND_SEARCH_0_9_9);
 
     /** @brief Adds range attribute filter to search config
       * 
       * @param excludeFlag invert filter (use values outside spcified range)
       */
-    void addRangeFilter(std::string attrName, uint64_t minValue,
+    void addRangeFilter(const std::string &attrName, uint64_t minValue,
                   uint64_t maxValue, bool excludeFlag=false);
     /** @brief Adds enumeration filter to search config
       * 
       * @param excludeFlag invert filter (use all values except enumerated)
       */
-    void addEnumFilter(std::string attrName, const Int64Array_t &values,
+    void addEnumFilter(const std::string &attrName, const Int64Array_t &values,
                   bool excludeFlag=false);
     /** @brief Adds enumeration filter to search config
       * 
       * @param excludeFlag invert filter (use all values except enumerated)
       */
-    void addEnumFilter(std::string attrName, const IntArray_t &values,
+    void addEnumFilter(const std::string &attrName, const IntArray_t &values,
                   bool excludeFlag=false);
     /** @brief Adds float range attribute filter to search config
       * 
       * @param excludeFlag invert filter (use values outside spcified range)
       */
-    void addFloatRangeFilter(std::string attrName, float minValue,
+    void addFloatRangeFilter(const std::string &attrName, float minValue,
                    float maxValue, bool excludeFlag=false);
 
     /** @brief Attribute value override for specified document.
@@ -348,86 +351,162 @@ struct SearchConfig_t
     bool getFilter(int index, std::string &attrname,
             bool &exclude, Int64Array_t &values) const;
 
-    uint32_t msgOffset; //!< @brief specifies, how many matches to skip
-    uint32_t msgLimit;  //!< @brief specifies, how many matches to fetch
+    /** Get number of set filters. */
+    unsigned getFilterCount() const;
 
-    uint32_t minId, maxId;  //!< @brief set document id limits
+    /** Get filtter at specified position. For internal use only. */
+    const Filter_t *getFilter(int index) const;
 
-    //----- pouziva se pouze ve verzi query 101 -----
-    //! @brief set minimum and maximum of timestamp
-    uint32_t minTimestamp, maxTimestamp;
-    //! @brief set minimum and maximum of group id
-    uint32_t minGroupId, maxGroupId;
-    //-----------------------------------------------
+    /// Get seatch command version
+    SearchCommandVersion_t getCommandVersion() const;
 
-    //! @brief query matching mode (default SPH_MATCH_ALL)
-    MatchMode_t matchMode;
-    //! @brief result sorting mode (default SPH_SORT_RELEVANCE)
-    SortMode_t sortMode;
-    //! @brief fulltext ranking mode (default SPH_RANK_PROXIMITY_BM25)
-    //         since version 113
-    RankingMode_t rankingMode;
+    /**
+     * Setup query paging
+     * @param msgOffset specifies, how many matches to skip
+     * @param msgLimit specifies, how many matches to fetch
+     */
+    void setPaging(uint32_t msgOffset, uint32_t msgLimit);
 
-    //! @brief per field weights
-    IntArray_t weights;
+    /// Set query matching mode
+    void setMatchMode(MatchMode_t matchMode);
 
-    //----- pouze ve verzi 101 -----
-    //! @brief groups of documents to search in
-    IntArray_t groups;
-    //------------------------------
+    /**
+     * Setup result entry sorting
+     * @param sortMode result sorting mode
+     * @param sortBy which columns or expression to sort the result by
+     */
+    void setSorting(SortMode_t sortMode, const std::string &sortBy = "");
 
-    
-    //----- od verze query 104 -----
-    std::string sortBy;          //!< @brief which columns to sort the result by
-    //! @brief filters for specified attributes. Range (Min, max) and list of
-    //!        allowed values (enum). maxValue and minValue must have same size.
-    std::map<std::string, uint32_t> minValue;
-    std::map<std::string, uint32_t> maxValue;
-    std::map<std::string, IntArray_t > filter;
-    std::string groupBy;        //!< @brief which columns to group the result by
-    //! @brief group function - fetch the match with greatest relevance per
-    //!        group
-    GroupFunction_t groupFunction;
-    int maxMatches;  //!< @brief maximum matches to search for
-    //------------------------------
+    /**
+     * Set result entry ranking
+     * @param rankingMode fulltext ranking mode (default SPH_RANK_PROXIMITY_BM25)
+     * @param rankExpr ranking expression for SPH_RANK_EXPR
+     */
+    void setRanking(RankingMode_t rankingMode, const std::string &rankExpr = "");
 
-    //----- od verze query 107 -----
-    std::string groupSort; //!< $brief group-by sorting clause (to sort groups in result set with)
-    std::vector<Filter_t *> filters; //!< $brief array to hold attribute filter (range, enum)
+    /**
+     * Setup search result grouping
+     * @param groupFunction fetch the match with greatest relevance per group
+     * @param groupBy which columns to group the result by
+     * @param groupSort group-by sorting clause (to sort groups in result set)
+     */
+    void setGrouping(
+            GroupFunction_t groupFunction,
+            const std::string &groupBy = "",
+            const std::string &groupSort = "");
 
-    //! @brief Command version - allowed values are 0x101, 0x104, 0x107, 0x113, 0x116
-    SearchCommandVersion_t commandVersion;
-    //! @brief Index file names to search in
-    std::string indexes;
+    /// Set count-distinct attribute (its name) for group-by query
+    void setGroupDistinctAttribute(const std::string &attributeName);
 
-    //----- od verze query 113 -----
-    //! @brief stop searching after cutoff matches (default 0 - disabled)
-    int32_t searchCutOff;
-    //! @brief distributed search retry count and delay
-    int32_t distRetryCount, distRetryDelay;
-    //! @brief count-distinct attribute (its name) for group-by query
-    std::string groupDistinctAttribute;
- 
-    //! @brief anchor points to do distance sorting
-    std::vector<GeoAnchorPoint_t> anchorPoints;
+    /// Set maximum matches to search for (internal queue size)
+    void setMaxMatches(int maxMatches);
+    /// Set max query duration, milliseconds (default is 0, do not limit)
+    void setMaxQueryTime(int32_t maxQueryTime);
 
-    //! @brief per index weights (map of index name to index weight)
-    std::map<std::string, uint32_t> indexWeights;
-    //! @brief max query duration, milliseconds (default is 0, do not limit)
-    int32_t maxQueryTime;
-    //! @brief per field weights (map of field name to field weight)
-    std::map<std::string, uint32_t> fieldWeights;
-    //! @brief query comment
-    std::string queryComment;
+    /// Set index names to search in.
+    void setSearchedIndexes(const std::string &indexNames);
+    /**
+     * Set per-index weight.
+     * @param indexName Index name
+     * @param weight Index weight
+     */
+    void setIndexWeight(const std::string &indexName, uint32_t weight);
+    /**
+     * Set field weight
+     * @param fieldName Field name
+     * @param weight Field weight
+     */
+    void setFieldWeight(const std::string &fieldName, uint32_t weight);
 
-    //----- od verze query 116 -----
-    //! @brief select columns to fetch in SQL-like select syntax. Available
-    //         aggregation functions are MIN, MAX, SUM, AVG. AS is required
-    std::string selectClause;
-    //! @brief attribute overrides - map attrName->(attrType, map docId->attrValue)
-    std::map<std::string,
-             std::pair<AttributeType_t, std::map<uint64_t, Value_t> > >
-                 attributeOverrides;
+    /// stop searching after cutoff matches (default 0 - disabled)
+    void setSearchCutoff(int32_t searchCutOff);
+    /**
+     * Set distributed search retries
+     * @param distRetryCount distributed search retry count
+     * @param distRetryDelay distributed search retry delay
+     */
+    void setRetries(int32_t distRetryCount, int32_t distRetryDelay);
+
+    /// Set array of geo anchor points to calculate geodist.
+    void setGeoAnchorPoints(const std::vector<GeoAnchorPoint_t> &anchorPoints);
+
+    /// Set comment on the query.
+    void setQueryComment(const std::string &queryComment);
+
+    /**
+     * Select columns to fetch in SQL-like select syntax. Available
+     * aggregation functions are MIN, MAX, SUM, AVG. AS is required
+     */
+    void setSelectClause(const std::string &selectClause);
+
+
+    /// Get current paging offset
+    uint32_t getPagingOffset() const;
+    /// Get current paging limit
+    uint32_t getPagingLimit() const;
+
+    /// Get current matching mode.
+    MatchMode_t getMatchMode() const;
+
+    /// Get current sorting mode.
+    SortMode_t getSortingMode() const;
+    /// Get current sorting expression.
+    const std::string &getSortingExpr() const;
+
+    /// Get current ranking mode.
+    RankingMode_t getRankingMode() const;
+    /// Get current ranking expression.
+    const std::string &getRankingExpr() const;
+
+    /// Get current grouping function.
+    GroupFunction_t getGroupingFunction() const;
+    /// Get group-by expression.
+    const std::string &getGroupByExpr() const;
+    /// Get group sorting expression.
+    const std::string &getGroupSortExpr() const;
+    /// Get attribute name to calculate distinc count per group.
+    const std::string &getGroupDistinctAttribute() const;
+
+    /// Get maximum match count.
+    int getMaxMatches() const;
+    /// Get maximum query duration.
+    uint32_t getMaxQueryTime() const;
+
+    /// Get indexes to be searched.
+    const std::string &getSearchedIndexes() const;
+    /// Get map of per-index weights.
+    const std::map<std::string, uint32_t> &getIndexWeights() const;
+    /// Get map of per-field weights.
+    const std::map<std::string, uint32_t> &getFieldWeights() const;
+
+    /// Get maximum count of examined documents.
+    int32_t getSearchCutoff() const;
+    /// Get distributed search retry count.
+    int32_t getDistRetryCount() const;
+    /// Get distributed search retry delay.
+    int32_t getDistRetryDelay() const;
+
+    /// Get array of geo anchor points.
+    const std::vector<GeoAnchorPoint_t> &getGeoAnchorPoints() const;
+
+    /// Get comment on the query.
+    const std::string &getQueryComment() const;
+
+    /// Get select clause.
+    const std::string &getSelectClause() const;
+
+    /// Type of attribute overrides return struct.
+    typedef std::map<
+        std::string,
+        std::pair<AttributeType_t, std::map<uint64_t, Value_t> > >
+            AttributeOverrides_t;
+
+    /// Fetch all attribute overrides.
+    const AttributeOverrides_t &getAttributeOverrides() const;
+
+private:
+    struct Dptr_t;
+    Dptr_t *dptr;
 };
 
 // ------------------------ Client_t -----------------------
@@ -472,10 +551,10 @@ typedef std::vector<std::pair<std::string, uint32_t> > AttributeTypes_t;
 
 struct Response_t
 {
-    //! @brief list of searched fields (only v. 104)
+    //! @brief list of searched fields
     std::vector<std::string> field;
 
-    //! @brief list of returned attributes and their types (only v. 104)
+    //! @brief list of returned attributes and their types
     AttributeTypes_t attribute;
 
     //! @brief list of matches found and returned by the searchd
@@ -522,7 +601,7 @@ public:
      * 
      * @param cv cmdVersion command version of multiquery
      */
-    MultiQuery_t(SearchCommandVersion_t cmdVersion = VER_COMMAND_SEARCH_0_9_8);
+    MultiQuery_t(SearchCommandVersion_t cmdVersion = VER_COMMAND_SEARCH_0_9_9);
 
     //! @brief resets query data and multi-query command version
     void initQuery(SearchCommandVersion_t commandVersion);
@@ -619,7 +698,7 @@ public:
      * 
      * @param cv cmdVersion command version of multiquery
      */
-    MultiQueryOpt_t(SearchCommandVersion_t cmdVersion = VER_COMMAND_SEARCH_0_9_8);
+    MultiQueryOpt_t(SearchCommandVersion_t cmdVersion = VER_COMMAND_SEARCH_0_9_9);
 
     /* @brief groups input queries into groups efficient for sphinx multiquery
      *        processing.

@@ -46,400 +46,24 @@
 //-----------------------------------------------------------------------------
 
 void buildHeader(Sphinx::Command_t command, unsigned short version,
-                 int queryLength, Sphinx::Query_t &data, int queryCount=1)
+                 int queryLength, Sphinx::Query_t &data, int queryCount)
 {
     data << (unsigned short) command;
     data << (unsigned short) version;
 
-    if(command==Sphinx::SEARCHD_COMMAND_SEARCH && 
-       version>=Sphinx::VER_COMMAND_SEARCH_0_9_8) {
-        data << (uint32_t) (queryLength + sizeof(uint32_t));
-        data << (uint32_t) queryCount;
-    }
-    else
+    if (command==Sphinx::SEARCHD_COMMAND_SEARCH) {
+        data << (uint32_t) (queryLength + sizeof(uint32_t)*2);
+        if (version == Sphinx::VER_COMMAND_SEARCH_0_9_9) {
+            data << (uint32_t) queryCount;
+        } else {
+            data << (uint32_t) 0 << (uint32_t) queryCount;
+        }
+    } else {
         data << (uint32_t) queryLength;
+    }
 }//konec fce
 
 //------------------------------------------------------------------------------
-
-void buildQuery_v0_9_6(const std::string &query,
-                       const Sphinx::SearchConfig_t &attrs,
-                       Sphinx::Query_t &data)
-{
-    /*
-    int32_t offset, limit, matchMode, sortMode
-    int32_t number_of_groups {int32_t group_id}
-    string query
-    int32_t number_of_weights {int32_t weight}
-    string indexes
-    */
-
-    //limits, modes
-    data << (uint32_t) attrs.msgOffset << (uint32_t) attrs.msgLimit;
-    data << (uint32_t) attrs.matchMode;
-    data << (uint32_t) attrs.sortMode;
-
-    //groups
-    data << (uint32_t) attrs.groups.size();
-    for (Sphinx::IntArray_t::const_iterator group = attrs.groups.begin() ;
-         group != attrs.groups.end() ; group++)
-    {
-        data << (uint32_t) (*group);
-    }//for
-
-    //query
-    data << query;
-
-    //weights
-    data << (uint32_t) attrs.weights.size();
-    for (Sphinx::IntArray_t::const_iterator weight = attrs.weights.begin() ;
-         weight != attrs.weights.end() ; weight++)
-    {
-        data << (uint32_t) (*weight);
-    }//for
-
-    //indexes
-    data << attrs.indexes;
-
-    //ranges
-    data << attrs.minId << attrs.maxId;
-    data << attrs.minTimestamp << attrs.maxTimestamp;
-    data << attrs.minGroupId << attrs.maxGroupId;
-}//konec fce
-
-
-void buildQuery_v0_9_7(const std::string &query,
-                       const Sphinx::SearchConfig_t &attrs,
-                       Sphinx::Query_t &data)
-{
-    /*
-    int32_t offset, limit, matchMode, sortMode
-    string sort_by
-    string query
-    int32_t number_of_weights {int32_t weight}
-    string indexes
-    int32_t min_id, int32_t max_id
-    int32_t (minmax_count+filers_count)
-        {string attr, int32_t 0, int32_t min, int32_t max}
-        {string attr, int32_t value_count, {int32_t value}}
-    int32_t group_func, string group_by
-    int32_t maxMatches
-    */
-
-    //limits, modes
-    data << (uint32_t) attrs.msgOffset << (uint32_t) attrs.msgLimit;
-    data << (uint32_t) attrs.matchMode;
-    data << (uint32_t) attrs.sortMode;
-
-    //sort_by
-    data << attrs.sortBy;
-
-    //query
-    data << query;
-
-    //weights
-    data << (uint32_t) attrs.weights.size();
-    for (Sphinx::IntArray_t::const_iterator weight = attrs.weights.begin() ;
-         weight != attrs.weights.end() ; weight++)
-    {
-        data << (uint32_t) (*weight);
-    }//for
-
-    //indexes
-    data << attrs.indexes;
-
-    //id range
-    data << attrs.minId << attrs.maxId;
-
-    //filters
-    data << (uint32_t)(attrs.minValue.size() + attrs.filter.size());
-
-    std::map<std::string, uint32_t>::const_iterator min, max;
-    for (min = attrs.minValue.begin(), max = attrs.maxValue.begin() ;
-         min != attrs.minValue.end() ; min++, max++)
-    {
-        //string key
-        data << min->first;
-        //ranges
-        data << (uint32_t) 0 << (uint32_t) min->second << (uint32_t) max->second;
-    }//for
-
-    for (std::map<std::string, Sphinx::IntArray_t >::const_iterator filt
-         = attrs.filter.begin() ; filt != attrs.filter.end() ; filt++)
-    {
-        //string key, uint32_t value count
-        data << filt->first;
-        data << (uint32_t) filt->second.size();
-        //values
-        for (Sphinx::IntArray_t::const_iterator val = filt->second.begin() ;
-             val != filt->second.end() ; val++)
-        {
-            data << (uint32_t)(*val);
-        }//for
-    }//for
-
-    //group by
-    data << (uint32_t) attrs.groupFunction;
-    data << attrs.groupBy;
-
-    //max matches
-    data << (uint32_t) attrs.maxMatches;
-}//konec fce
-
-
-void buildQuery_v0_9_7_1(const std::string &query,
-                       const Sphinx::SearchConfig_t &attrs,
-                       Sphinx::Query_t &data)
-{
-    /*
-    int32_t offset, limit, matchMode, sortMode
-    string sort_by
-    string query
-    int32_t number_of_weights {int32_t weight}
-    string indexes
-    int32_t min_id, int32_t max_id 
-    int32_t (range_filter_count+enum_filters_count+0.9.7.1_interface_filters)
-        {string attr, int32_t 0, int32_t min, int32_t excludeFlag}
-        {string attr, int32_t value_count, {int32_t value}, int32_t excludeFlag}
-    int32_t group_func, string group_by, string groupSort
-    int32_t maxMatches
-    */
-
-    //limits, modes
-    data << (uint32_t) attrs.msgOffset << (uint32_t) attrs.msgLimit;
-    data << (uint32_t) attrs.matchMode;
-    data << (uint32_t) attrs.sortMode;
-
-    //sort_by
-    data << attrs.sortBy;
-
-    //query
-    data << query;
-
-    //weights
-    data << (uint32_t) attrs.weights.size();
-    for (Sphinx::IntArray_t::const_iterator weight = attrs.weights.begin() ;
-         weight != attrs.weights.end() ; weight++)
-    {
-        data << (uint32_t) (*weight);
-    }//for
-
-    //indexes
-    data << attrs.indexes;
-
-    //id range
-    data << attrs.minId << attrs.maxId;
-
-    //filters
-    data << (uint32_t)(attrs.minValue.size() + attrs.filter.size()
-                       + attrs.filters.size());
-
-    /*
-     *  old filter interface - range filters
-     */
-    std::map<std::string, uint32_t>::const_iterator min, max;
-    for (min = attrs.minValue.begin(), max = attrs.maxValue.begin() ;
-         min != attrs.minValue.end() ; min++, max++)
-    {
-        //string key
-        data << min->first;
-        //ranges
-        data << (uint32_t) 0
-             << (uint32_t) min->second
-             << (uint32_t) max->second;
-        // excludeFlag - false
-        data << (uint32_t) false;
-    }//for
-
-    /*
-     * old filter interface - enum (value) filters
-     */
-
-    for (std::map<std::string, Sphinx::IntArray_t >::const_iterator filt
-         = attrs.filter.begin() ; filt != attrs.filter.end() ; filt++)
-    {
-        //string key, uint32_t value count
-        data << filt->first;
-        data << (uint32_t) filt->second.size();
-        //values
-        for (Sphinx::IntArray_t::const_iterator val = filt->second.begin() ;
-             val != filt->second.end() ; val++)
-            data << (uint32_t)(*val);
-        // excludeFlag
-        data << (uint32_t) false;
-    }//for
-
-    /*
-     * new filter interface
-     */
-    for (std::vector<Sphinx::Filter_t *>::const_iterator it= attrs.filters.begin();
-         it != attrs.filters.end(); it++)
-    {
-        (*it)->dumpToBuff(data, Sphinx::VER_COMMAND_SEARCH_0_9_7_1);
-    }
-
-    //group by
-    data << (uint32_t) attrs.groupFunction;
-    data << attrs.groupBy;
-
-    //max matches
-    data << (uint32_t) attrs.maxMatches;
-
-    // group sort criterion
-    data << attrs.groupSort;
-}//konec fce
-
-
-void buildQuery_v0_9_8(const std::string &query,
-                       const Sphinx::SearchConfig_t &attrs,
-                       Sphinx::Query_t &data)
-{
-    /*
-    int32_t offset, limit, matchMode, rankingMode, sortMode
-    string sort_by
-    string query
-    int32_t number_of_weights {int32_t weight}
-    string indexes
-    int32_t 1 ... 64bit id range marker
-    int64_t min_id, int64_t max_id
-    
-    int32_t total_filter_count
-        {
-        string attribute_name
-        int32_t filter_type
-        ( int32_t value_count {int32_t value} )
-         | (int32_t min, max)
-         | (packed_float32_t min, max)
-        int32_t excludeFlag
-        }
-
-    int32_t group_func, string group_by
-    int32_t maxMatches
-    string groupSort
-    int32_t cutoff, retrycount, retrydelay
-    string groupdistinct
-    
-    int32_t anchor_point_count
-    {string attr_lattitude, string attr_longitude, packed_float32_t lattitude, packed_float32_t longitude}
-
-    int32_t indexWeightCount {string indexName, int32_t weight}
-    int32_t maxQueryTime
-    int32_t fieldWeightCount {string fieldName, int32_t weight}
-    string comment
-    */
-
-    //limits, modes
-    data << (uint32_t) attrs.msgOffset << (uint32_t) attrs.msgLimit;
-    data << (uint32_t) attrs.matchMode;
-    data << (uint32_t) attrs.rankingMode;
-    data << (uint32_t) attrs.sortMode;
-
-    //sort_by
-    data << attrs.sortBy;
-
-    //query
-    data << query;
-
-    //weights
-    data << (uint32_t) attrs.weights.size();
-    for (Sphinx::IntArray_t::const_iterator weight = attrs.weights.begin() ;
-         weight != attrs.weights.end() ; weight++)
-    {
-        data << (uint32_t) (*weight);
-    }//for
-
-    //indexes
-    data << attrs.indexes;
-
-    //id range
-    data << (uint32_t) 1; //64bit id range marker
-    data << (uint64_t)(attrs.minId) << (uint64_t)(attrs.maxId);
-
-    //filters
-    data << (uint32_t)(attrs.minValue.size() + attrs.filter.size()
-                       + attrs.filters.size());
-
-    /*
-     *  old filter interface - range filters
-     */
-    std::map<std::string, uint32_t>::const_iterator min, max;
-    for (min = attrs.minValue.begin(), max = attrs.maxValue.begin() ;
-         min != attrs.minValue.end() ; min++, max++)
-    {
-        Sphinx::RangeFilter_t filter(min->first, min->second, max->second);
-        filter.dumpToBuff(data, Sphinx::VER_COMMAND_SEARCH_0_9_8);
-    }//for
-
-    /*
-     * old filter interface - enum (value) filters
-     */
-
-    for (std::map<std::string, Sphinx::IntArray_t >::const_iterator filt
-         = attrs.filter.begin() ; filt != attrs.filter.end() ; filt++)
-    {
-        Sphinx::EnumFilter_t filter(filt->first, filt->second);
-        filter.dumpToBuff(data, Sphinx::VER_COMMAND_SEARCH_0_9_8);
-    }//for
-
-    /*
-     * new filter interface
-     */
-    for (std::vector<Sphinx::Filter_t *>::const_iterator it= attrs.filters.begin();
-         it != attrs.filters.end(); it++)
-    {
-        (*it)->dumpToBuff(data, Sphinx::VER_COMMAND_SEARCH_0_9_8);
-    }
-
-    //group by
-    data << (uint32_t) attrs.groupFunction;
-    data << attrs.groupBy;
-
-    //max matches
-    data << (uint32_t) attrs.maxMatches;
-
-    // group sort criterion
-    data << attrs.groupSort;
-    
-    //search cutoff, distributed search retry count and delay
-    data << (uint32_t) attrs.searchCutOff
-         << (uint32_t) attrs.distRetryCount
-         << (uint32_t) attrs.distRetryDelay;
-
-    //group distinct attribute
-    data << attrs.groupDistinctAttribute;
-
-    //geographical anchor points
-    data << (uint32_t) attrs.anchorPoints.size();
-    for (std::vector<Sphinx::GeoAnchorPoint_t>::const_iterator apI = \
-         attrs.anchorPoints.begin() ;
-         apI != attrs.anchorPoints.end() ; apI++)
-    {
-        data << apI->lattitudeAttributeName << apI->longitudeAttributeName;
-        data << apI->lattitude << apI->longitude;
-    }//for
-
-    //per-index weights
-    data << (uint32_t)attrs.indexWeights.size();
-    for (std::map<std::string, uint32_t>::const_iterator iw=attrs.indexWeights.begin();
-         iw != attrs.indexWeights.end() ; iw++)
-    {
-        data << iw->first << (uint32_t)iw->second;
-    }//for
-
-    //maximum query duration
-    data << (uint32_t)attrs.maxQueryTime;
-
-    //per-field weights
-    data << (uint32_t)attrs.fieldWeights.size();
-    for (std::map<std::string, uint32_t>::const_iterator fw=attrs.fieldWeights.begin();
-         fw != attrs.fieldWeights.end() ; fw++)
-    {
-        data << fw->first << (uint32_t)fw->second;
-    }//for
-
-    //query comment
-    data << attrs.queryComment;
-}//konec fce
 
 
 void buildQuery_v0_9_9(const std::string &query,
@@ -447,13 +71,15 @@ void buildQuery_v0_9_9(const std::string &query,
                        Sphinx::Query_t &data)
 {
     /*
-    int32_t offset, limit, matchMode, rankingMode, sortMode
+    int32_t offset, limit, matchMode, rankingMode
+    [string rankExpr]  - pro rankingMode = SHP_RANK_EXPR, pridano ve 2.0.5
+    int32_t sortMode (deprecated)
     string sort_by
     string query
-    int32_t number_of_weights {int32_t weight}
+    int32_t number_of_weights {int32_t weight} - DEPRECATED
     string indexes
     int32_t 1 ... 64bit id range marker
-    int64_t min_id, int64_t max_id
+    int64_t min_id, int64_t max_id - DEPRECATED
     
     int32_t total_filter_count
         {
@@ -479,7 +105,7 @@ void buildQuery_v0_9_9(const std::string &query,
     int32_t fieldWeightCount {string fieldName, int32_t weight}
     string comment
 
-    int32_t overrideCount - TODO pridano v 0.9.9
+    int32_t overrideCount
         {
         string attrName
         int32_t attrType
@@ -494,126 +120,105 @@ void buildQuery_v0_9_9(const std::string &query,
     */
 
     //limits, modes
-    data << (uint32_t) attrs.msgOffset << (uint32_t) attrs.msgLimit;
-    data << (uint32_t) attrs.matchMode;
-    data << (uint32_t) attrs.rankingMode;
-    data << (uint32_t) attrs.sortMode;
+    data << attrs.getPagingOffset() << attrs.getPagingLimit();
+    data << (uint32_t) attrs.getMatchMode();
+    data << (uint32_t) attrs.getRankingMode();
+    // ranking expression
+    if (attrs.getRankingMode() == Sphinx::SPH_RANK_EXPR &&
+            attrs.getCommandVersion() >= Sphinx::VER_COMMAND_SEARCH_2_0_5)
+        data << attrs.getRankingExpr();
+    data << (uint32_t) attrs.getSortingMode();
 
     //sort_by
-    data << attrs.sortBy;
+    data << attrs.getSortingExpr();
 
     //query
     data << query;
 
-    //weights
-    data << (uint32_t) attrs.weights.size();
-    for (Sphinx::IntArray_t::const_iterator weight = attrs.weights.begin() ;
-         weight != attrs.weights.end() ; weight++)
-    {
-        data << (uint32_t) (*weight);
-    }//for
+    //weights - DEPRECATED, use fieldWeights instead
+    data << (uint32_t) 0;
 
     //indexes
-    data << attrs.indexes;
+    data << attrs.getSearchedIndexes();
 
     //id range
     data << (uint32_t) 1; //64bit id range marker
-    data << (uint64_t)(attrs.minId) << (uint64_t)(attrs.maxId);
+    // deprecated ID range, use attribute @id range filter
+    data << (uint64_t)(0) << (uint64_t)(0);
 
     //filters
-    data << (uint32_t)(attrs.minValue.size() + attrs.filter.size()
-                       + attrs.filters.size());
-
-    /*
-     *  old filter interface - range filters
-     */
-    std::map<std::string, uint32_t>::const_iterator min, max;
-    for (min = attrs.minValue.begin(), max = attrs.maxValue.begin() ;
-         min != attrs.minValue.end() ; min++, max++)
-    {
-        Sphinx::RangeFilter_t filter(min->first, min->second, max->second);
-        filter.dumpToBuff(data, Sphinx::VER_COMMAND_SEARCH_0_9_9);
-    }//for
-
-    /*
-     * old filter interface - enum (value) filters
-     */
-
-    for (std::map<std::string, Sphinx::IntArray_t >::const_iterator filt
-         = attrs.filter.begin() ; filt != attrs.filter.end() ; filt++)
-    {
-        Sphinx::EnumFilter_t filter(filt->first, filt->second);
-        filter.dumpToBuff(data, Sphinx::VER_COMMAND_SEARCH_0_9_9);
-    }//for
+    unsigned filterCount = attrs.getFilterCount();
+    data << (uint32_t)(filterCount);
 
     /*
      * new filter interface
      */
-    for (std::vector<Sphinx::Filter_t *>::const_iterator it= attrs.filters.begin();
-         it != attrs.filters.end(); it++)
-    {
-        (*it)->dumpToBuff(data, Sphinx::VER_COMMAND_SEARCH_0_9_9);
+    for (unsigned i = 0; i < filterCount; ++i) {
+        attrs.getFilter(i)->dumpToBuff(data);
     }
 
     //group by
-    data << (uint32_t) attrs.groupFunction;
-    data << attrs.groupBy;
+    data << (uint32_t) attrs.getGroupingFunction();
+    data << attrs.getGroupByExpr();
 
     //max matches
-    data << (uint32_t) attrs.maxMatches;
+    data << (uint32_t) attrs.getMaxMatches();
 
     // group sort criterion
-    data << attrs.groupSort;
+    data << attrs.getGroupSortExpr();
 
     //search cutoff, distributed search retry count and delay
-    data << (uint32_t) attrs.searchCutOff
-         << (uint32_t) attrs.distRetryCount
-         << (uint32_t) attrs.distRetryDelay;
+    data << (uint32_t) attrs.getSearchCutoff()
+         << (uint32_t) attrs.getDistRetryCount()
+         << (uint32_t) attrs.getDistRetryDelay();
 
     //group distinct attribute
-    data << attrs.groupDistinctAttribute;
+    data << attrs.getGroupDistinctAttribute();
 
     //geographical anchor points
-    data << (uint32_t) attrs.anchorPoints.size();
-    for (std::vector<Sphinx::GeoAnchorPoint_t>::const_iterator apI = \
-         attrs.anchorPoints.begin() ;
-         apI != attrs.anchorPoints.end() ; apI++)
+    const std::vector<Sphinx::GeoAnchorPoint_t> &anchorPoints =
+        attrs.getGeoAnchorPoints();
+    data << (uint32_t) anchorPoints.size();
+    for (std::vector<Sphinx::GeoAnchorPoint_t>::const_iterator
+            apI = anchorPoints.begin() ; apI != anchorPoints.end() ; apI++)
     {
         data << apI->lattitudeAttributeName << apI->longitudeAttributeName;
         data << apI->lattitude << apI->longitude;
     }//for
 
     //per-index weights
-    data << (uint32_t)attrs.indexWeights.size();
-    for (std::map<std::string, uint32_t>::const_iterator iw=attrs.indexWeights.begin();
-         iw != attrs.indexWeights.end() ; iw++)
+    const std::map<std::string, uint32_t> &indexWeights = attrs.getIndexWeights();
+    data << (uint32_t)indexWeights.size();
+    for (std::map<std::string, uint32_t>::const_iterator iw=indexWeights.begin();
+         iw != indexWeights.end() ; iw++)
     {
         data << iw->first << (uint32_t)iw->second;
     }//for
 
     //maximum query duration
-    data << (uint32_t)attrs.maxQueryTime;
+    data << (uint32_t)attrs.getMaxQueryTime();
 
     //per-field weights
-    data << (uint32_t)attrs.fieldWeights.size();
-    for (std::map<std::string, uint32_t>::const_iterator fw=attrs.fieldWeights.begin();
-         fw != attrs.fieldWeights.end() ; fw++)
+    const std::map<std::string, uint32_t> &fieldWeights = attrs.getFieldWeights();
+    data << (uint32_t)fieldWeights.size();
+    for (std::map<std::string, uint32_t>::const_iterator fw=fieldWeights.begin();
+         fw != fieldWeights.end() ; fw++)
     {
         data << fw->first << (uint32_t)fw->second;
     }//for
 
     //query comment
-    data << attrs.queryComment;
+    data << attrs.getQueryComment();
 
     //attribute overrides
-    data << (uint32_t) attrs.attributeOverrides.size();
+    const Sphinx::SearchConfig_t::AttributeOverrides_t &attributeOverrides =
+        attrs.getAttributeOverrides();
+    data << (uint32_t) attributeOverrides.size();
 
-    std::map<std::string,
-             std::pair<Sphinx::AttributeType_t,
-                       std::map<uint64_t, Sphinx::Value_t> > >
-                 :: const_iterator ovrI = attrs.attributeOverrides.begin();
+    Sphinx::SearchConfig_t::AttributeOverrides_t::const_iterator
+        ovrI = attributeOverrides.begin();
 
-    for ( ; ovrI != attrs.attributeOverrides.end() ; ++ovrI) {
+    for ( ; ovrI != attributeOverrides.end() ; ++ovrI) {
         // attribute name and type, count of docs overridden
         data << ovrI->first;
         data << (uint32_t) ovrI->second.first;
@@ -643,142 +248,9 @@ void buildQuery_v0_9_9(const std::string &query,
     }//for attributes
 
     //select clause
-    data << attrs.selectClause;
+    data << attrs.getSelectClause();
 }//konec fce
 
-
-void parseResponse_v0_9_6(Sphinx::Query_t &data, Sphinx::Response_t &response)
-{
-    uint32_t matchCount;
-    uint32_t wordCount;
-    uint32_t docId;
-
-    response.clear();
-
-    //number of entries to fetch
-    if (!(data >> matchCount))
-        throw Sphinx::MessageError_t(
-                         "Can't read any data. Probably zero-length response.");
-
-    for (unsigned int i=0 ; i<matchCount ; i++)
-    {
-        Sphinx::ResponseEntry_t entry;
-        data >> docId;
-        entry.documentId = docId;
-        data >> entry.groupId;
-        data >> entry.timestamp;
-        data >> entry.weight;
-
-        response.entry.push_back(entry);
-    }//for
-
-    //uint32_t totalGot, totalFound, timeConsumed;
-
-    data >> response.entriesGot;
-    data >> response.entriesFound;
-    data >> response.timeConsumed;
-
-    //number of words in query
-    data >> wordCount;
-
-    //read word statistics
-    for (unsigned int i=0 ; i<wordCount ; i++)
-    {
-        Sphinx::WordStatistics_t entry;
-        std::string word;
-
-        data >> word;
-        data >> entry.docsHit;
-        data >> entry.totalHits;
-
-        response.word[word] = entry;
-    }//for
-}//konec fce
-
-void parseResponse_v0_9_7(Sphinx::Query_t &data, Sphinx::Response_t &response)
-{
-    uint32_t matchCount;
-    uint32_t wordCount;
-    uint32_t fieldCount;
-    uint32_t attrCount;
-
-    response.clear();
-
-    //read fields
-    if (!(data >> fieldCount))
-        throw Sphinx::MessageError_t(
-                         "Can't read any data. Probably zero-length response.");
-
-    for (unsigned int i=0 ; i<fieldCount ; i++)
-    {
-        std::string name;
-        data >> name;
-        response.field.push_back(name);
-    }//for
-
-    //read attributes
-    data >> attrCount;
-
-    for (unsigned int i = 0 ; i<attrCount ; i++)
-    {
-        std::string name;
-        uint32_t type;
-
-        data >> name;
-        data >>type;
-
-        response.attribute.push_back(std::make_pair(name, type));
-    }//for
-
-    //number of entries to fetch
-    if (!(data >> matchCount))
-        throw Sphinx::MessageError_t(
-                         "Error parsing response.");
-
-    for (unsigned int i=0 ; i<matchCount ; i++)
-    {
-        Sphinx::ResponseEntry_t entry;
-        uint32_t docId;
-        data >> docId;
-        entry.documentId = docId;
-        data >> entry.weight;
-        entry.groupId = entry.timestamp = 0;
-
-        //read attribute values
-        for (Sphinx::AttributeTypes_t::iterator attr
-             = response.attribute.begin() ; attr!=response.attribute.end() ;
-             attr++)
-        {
-            uint32_t value;
-            data >> value;
-            entry.attribute.insert(std::make_pair(attr->first, value));
-        }//for
-
-        response.entry.push_back(entry);
-    }//for
-
-    //uint32_t totalGot, totalFound, timeConsumed;
-
-    data >> response.entriesGot;
-    data >> response.entriesFound;
-    data >> response.timeConsumed;
-
-    //number of words in query
-    data >> wordCount;
-
-    //read word statistics
-    for (unsigned int i=0 ; i<wordCount ; i++)
-    {
-        Sphinx::WordStatistics_t entry;
-        std::string word;
-
-        data >> word;
-        data >> entry.docsHit;
-        data >> entry.totalHits;
-
-        response.word[word] = entry;
-    }//for
-}//konec fce
 
 
 template<class T>
@@ -795,6 +267,7 @@ std::vector<Sphinx::Value_t> parseMultiAttribute(Sphinx::Query_t &data, int valu
 
     return vec;
 }//konec fce
+
 
 void parseResponse_v0_9_8(Sphinx::Query_t &data, Sphinx::Response_t &response)
 {
@@ -887,31 +360,31 @@ void parseResponse_v0_9_8(Sphinx::Query_t &data, Sphinx::Response_t &response)
                 uint64_t value;
                 data >> value;
                 entry.attribute.insert(std::make_pair(attr->first, value));
+            } else if (attr->second == Sphinx::SPH_ATTR_MULTI ||
+                    attr->second == Sphinx::SPH_ATTR_MULTI_FLAG) {
+                // 32 bit multi-value attribute
+                uint32_t valueCount;
+                data >> valueCount;
+                //parse multi-attributes
+                entry.attribute.insert(std::make_pair(attr->first,
+                        parseMultiAttribute<uint32_t>(data, valueCount)));
+            } else if (attr->second == Sphinx::SPH_ATTR_MULTI64) {
+                // 64 bit multi-value attribute
+                uint32_t valueCount;
+                data >> valueCount;
+                //parse multi-attributes
+                entry.attribute.insert(std::make_pair(attr->first,
+                        parseMultiAttribute<uint64_t>(data, valueCount)));
+            } else if (attr->second == Sphinx::SPH_ATTR_STRING) {
+                //process string attributes
+                std::string value;
+                data >> value;
+                entry.attribute.insert(std::make_pair(attr->first, value));
             } else {
-                //process uint32_t and vector attributes
+                //process uint32_t attributes
                 uint32_t value;
                 data >> value;
-
-                //process multi-attributes
-                if(attr->second & Sphinx::SPH_ATTR_MULTI) {
-                    //get type of entries
-                    int type = attr->second ^ Sphinx::SPH_ATTR_MULTI;
-                    //value means number of attributes following
-                    //parse multi-attributes
-                    switch(type) {
-                    case Sphinx::SPH_ATTR_FLOAT:
-                        entry.attribute.insert(std::make_pair(attr->first,
-                            parseMultiAttribute<float>(data, value)));
-                        break;
-                    default:
-                        entry.attribute.insert(std::make_pair(attr->first,
-                            parseMultiAttribute<uint32_t>(data, value)));
-                        break;
-                    }//switch
-                } else {
-                    //single uint32_t attribute
-                    entry.attribute.insert(std::make_pair(attr->first, value));
-                }//else
+                entry.attribute.insert(std::make_pair(attr->first, value));
             }//else
         }//for
 
@@ -951,25 +424,10 @@ void buildQueryVersion(const std::string &query,
                        const Sphinx::SearchConfig_t &attrs,
                        Sphinx::Query_t &data)
 {
-    switch (attrs.commandVersion)
+    switch (attrs.getCommandVersion())
     {
-        case Sphinx::VER_COMMAND_SEARCH_0_9_6:
-            buildQuery_v0_9_6(query, attrs, data);
-            break;
-
-        case Sphinx::VER_COMMAND_SEARCH_0_9_7:
-            buildQuery_v0_9_7(query, attrs, data);
-            break;
-
-        case Sphinx::VER_COMMAND_SEARCH_0_9_7_1:
-            buildQuery_v0_9_7_1(query, attrs, data);
-            break;
-
-        case Sphinx::VER_COMMAND_SEARCH_0_9_8:
-            buildQuery_v0_9_8(query, attrs, data);
-            break;
-
         case Sphinx::VER_COMMAND_SEARCH_0_9_9:
+        case Sphinx::VER_COMMAND_SEARCH_2_0_5:
             buildQuery_v0_9_9(query, attrs, data);
             break;
     }//switch
@@ -982,19 +440,8 @@ void parseResponseVersion(Sphinx::Query_t &data,
 {
     switch (responseVersion)
     {
-        case Sphinx::VER_COMMAND_SEARCH_0_9_6:
-            parseResponse_v0_9_6(data, response);
-            response.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_6;
-            break;
-
-        case Sphinx::VER_COMMAND_SEARCH_0_9_7:
-        case Sphinx::VER_COMMAND_SEARCH_0_9_7_1:
-            parseResponse_v0_9_7(data, response);
-            response.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_7;
-            break;
-
-        case Sphinx::VER_COMMAND_SEARCH_0_9_8:
         case Sphinx::VER_COMMAND_SEARCH_0_9_9:
+        case Sphinx::VER_COMMAND_SEARCH_2_0_5:
             response.commandVersion = responseVersion;
             parseResponse_v0_9_8(data, response);
             break;

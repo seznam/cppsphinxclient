@@ -1,3 +1,12 @@
+libsphinxclient (2.1.0) unstable; urgency=low
+
+  * Support string attributes and 64bit multi-attributes.
+  * Add newest ranking modes except.
+  * Remove support for sphinx search older than 0.9.9.
+  * Rewrite SearchConfig_t interface to use dptr.
+
+ -- Jan Kirschner <jan.kirschner@firma.seznam.cz>  Mon, 21 Jan 2013 10:48:15 +0100
+
 libsphinxclient (2.0.1) unstable; urgency=low
 
   * Interface for fetching filter data from search config.

@@ -54,7 +54,8 @@ enum ValueType_t {
     VALUETYPE_UINT32 = 0, //!< @brief 32bit unsigned integer
     VALUETYPE_FLOAT = 1,  //!< @brief 32bit floating point value
     VALUETYPE_VECTOR = 2, //!< @brief vector of uint32_ts or floats
-    VALUETYPE_UINT64 = 3  //!< @brief 64bit unsigned integer
+    VALUETYPE_UINT64 = 3, //!< @brief 64bit unsigned integer
+    VALUETYPE_STRING = 4  //!< @brief string
 };
 
 class ValueBase_t;
@@ -82,6 +83,8 @@ public:
     Value_t(const std::vector<Value_t> &v);
     //! @brief initializes Value_t as uint64_t type
     Value_t(uint64_t v);
+    //! @brief initializes Value_t as string type
+    Value_t(const std::string &v);
 
     ~Value_t(){ clear(); }
 
@@ -129,6 +132,13 @@ public:
      *  uint64_t, throws ValueTypeError_t;
      */
     operator uint64_t () const throw (ValueTypeError_t);
+
+    /** @brief overloaded implicit conversion operator to std::string
+     *
+     *  Returns value as std::string. If the current value type is other than
+     *  string, throws ValueTypeError_t;
+     */
+    operator const std::string & () const throw (ValueTypeError_t);
 };//class
 
 

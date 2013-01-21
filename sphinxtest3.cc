@@ -56,19 +56,17 @@ int main()
 
     Sphinx::Client_t connection(config);
     std::vector<Sphinx::Response_t> results;
-    Sphinx::SearchConfig_t settings;
+    Sphinx::SearchConfig_t settings(Sphinx::VER_COMMAND_SEARCH_0_9_9);
 
     printf("starting.....\n");
 
     // search settings
-    settings.msgOffset = 0;
-    settings.msgLimit = 20;
-    settings.commandVersion = Sphinx::VER_COMMAND_SEARCH_0_9_9;
-    settings.matchMode = Sphinx::SPH_MATCH_ALL;
-    settings.maxMatches = 1000;
-    settings.indexes = "test1";
-    settings.queryComment = "comment";
-    settings.maxQueryTime = 10000;
+    settings.setPaging(0, 20);
+    settings.setMatchMode(Sphinx::SPH_MATCH_ALL);
+    settings.setMaxMatches(1000);
+    settings.setSearchedIndexes("test1");
+    settings.setQueryComment("comment");
+    settings.setMaxQueryTime(10000);
 
     // preparation of enumeration filter
     Sphinx::Int64Array_t ids;
@@ -83,21 +81,19 @@ int main()
     settings.addEnumFilter("att_uint", ids, true);
 
     // sorting - relevance ascending
-    settings.sortMode = Sphinx::SPH_SORT_RELEVANCE;
+    settings.setSorting(Sphinx::SPH_SORT_RELEVANCE);
 
     // groups settings
-    settings.groupFunction = Sphinx::SPH_GROUPBY_ATTR;
-    settings.groupBy = "att_group";
-    settings.groupSort = "@id asc";
+    settings.setGrouping(Sphinx::SPH_GROUPBY_ATTR, "att_group", "@id asc");
 
     // create multiquery
     Sphinx::MultiQueryOpt_t query(Sphinx::VER_COMMAND_SEARCH_0_9_9);
     query.addQuery("ped ahoj popisek", settings);
     query.addQuery("pes ahoj", settings);
-    settings.groupBy = "att_uint";
+    settings.setGrouping(Sphinx::SPH_GROUPBY_ATTR, "att_uint", "@id asc");
     query.addQuery("pes ahoj", settings);
     query.addQuery("ped ahoj popisek", settings);
-    
+
     // group queries that are efficient for sphinx multi-query processing
     query.optimise();
 

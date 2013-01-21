@@ -44,11 +44,10 @@
 
 namespace Sphinx {
 
-enum SearchCommandVersion_t { VER_COMMAND_SEARCH_0_9_6 = 0x101,
-                              VER_COMMAND_SEARCH_0_9_7 = 0x104,
-                              VER_COMMAND_SEARCH_0_9_7_1 = 0x107,
-                              VER_COMMAND_SEARCH_0_9_8 = 0x113,
-                              VER_COMMAND_SEARCH_0_9_9 = 0x116 };
+enum SearchCommandVersion_t {
+    VER_COMMAND_SEARCH_0_9_9 = 0x116,
+    VER_COMMAND_SEARCH_2_0_5 = 0x119
+};
 
 enum UpdateCommandVersion_t { VER_COMMAND_UPADTE_0_9_8 = 0x101 };
 
