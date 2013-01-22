@@ -50,12 +50,13 @@ namespace Sphinx {
     {
         o << ((f.excludeFlag) ? "!" : "") << f.attrName << ";";
         return f.print(o);
-    } 
+    }
 }
 
-Sphinx::RangeFilter_t::RangeFilter_t(std::string attrName, uint32_t minValue,
-                                     uint32_t maxValue, bool excludeFlag)
-                : minValue(minValue), maxValue(maxValue) 
+Sphinx::RangeFilter_t::RangeFilter_t(
+        const std::string &attrName, uint32_t minValue,
+        uint32_t maxValue, bool excludeFlag)
+    : minValue(minValue), maxValue(maxValue)
 {
     this->attrName = attrName;
     this->excludeFlag = excludeFlag;
@@ -82,18 +83,18 @@ Sphinx::Filter_t * Sphinx::RangeFilter_t::clone() const
     return new Sphinx::RangeFilter_t(*this);
 }
 
-Sphinx::EnumFilter_t::EnumFilter_t(std::string attrName,
-                                   const Int64Array_t &values,
-                                   bool excludeFlag)
-        : values(values)
+Sphinx::EnumFilter_t::EnumFilter_t(
+        const std::string &attrName, const Int64Array_t &values,
+        bool excludeFlag)
+    : values(values)
 {
         this->attrName = attrName;
         this->excludeFlag = excludeFlag;
 }
 
-Sphinx::EnumFilter_t::EnumFilter_t(std::string attrName,
-                                   const IntArray_t &nvalues,
-                                   bool excludeFlag)
+Sphinx::EnumFilter_t::EnumFilter_t(
+        const std::string &attrName, const IntArray_t &nvalues,
+        bool excludeFlag)
 {
     values.clear();
     for(IntArray_t::const_iterator valI = nvalues.begin() ; valI!=nvalues.end();
@@ -135,9 +136,10 @@ Sphinx::Filter_t * Sphinx::EnumFilter_t::clone() const
 }
 
 
-Sphinx::FloatRangeFilter_t::FloatRangeFilter_t(std::string attrName, float minValue,
-                                     float maxValue, bool excludeFlag)
-                : minValue(minValue), maxValue(maxValue) 
+Sphinx::FloatRangeFilter_t::FloatRangeFilter_t(
+        const std::string &attrName, float minValue, float maxValue,
+        bool excludeFlag)
+    : minValue(minValue), maxValue(maxValue)
 {
     this->attrName = attrName;
     this->excludeFlag = excludeFlag;

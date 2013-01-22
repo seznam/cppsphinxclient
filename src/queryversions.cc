@@ -180,7 +180,7 @@ void buildQuery_v0_9_9(const std::string &query,
         attrs.getGeoAnchorPoints();
     data << (uint32_t) anchorPoints.size();
     for (std::vector<Sphinx::GeoAnchorPoint_t>::const_iterator
-            apI = anchorPoints.begin() ; apI != anchorPoints.end() ; apI++)
+            apI = anchorPoints.begin() ; apI != anchorPoints.end() ; ++apI)
     {
         data << apI->lattitudeAttributeName << apI->longitudeAttributeName;
         data << apI->lattitude << apI->longitude;
@@ -190,7 +190,7 @@ void buildQuery_v0_9_9(const std::string &query,
     const std::map<std::string, uint32_t> &indexWeights = attrs.getIndexWeights();
     data << (uint32_t)indexWeights.size();
     for (std::map<std::string, uint32_t>::const_iterator iw=indexWeights.begin();
-         iw != indexWeights.end() ; iw++)
+         iw != indexWeights.end() ; ++iw)
     {
         data << iw->first << (uint32_t)iw->second;
     }//for
@@ -202,7 +202,7 @@ void buildQuery_v0_9_9(const std::string &query,
     const std::map<std::string, uint32_t> &fieldWeights = attrs.getFieldWeights();
     data << (uint32_t)fieldWeights.size();
     for (std::map<std::string, uint32_t>::const_iterator fw=fieldWeights.begin();
-         fw != fieldWeights.end() ; fw++)
+         fw != fieldWeights.end() ; ++fw)
     {
         data << fw->first << (uint32_t)fw->second;
     }//for

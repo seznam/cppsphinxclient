@@ -88,7 +88,6 @@ struct Filter_t
       */
     virtual Filter_t * clone() const = 0;
 
-       
     virtual ~Filter_t() {};
 
     std::string attrName;
@@ -99,10 +98,10 @@ struct Filter_t
   *
   * Range filter provides filtering search result based on attribute
   * range.
-  */ 
+  */
 struct RangeFilter_t : public Filter_t
 {
-    RangeFilter_t(std::string attrName, uint32_t minValue,
+    RangeFilter_t(const std::string &attrName, uint32_t minValue,
                   uint32_t maxValue, bool excludeFlag=false);
     void dumpToBuff(Sphinx::Query_t &data) const;
     virtual std::ostream & print(std::ostream &o) const;
@@ -116,13 +115,13 @@ struct RangeFilter_t : public Filter_t
   *
   * Enum filter provides filtering search result based on enumerated
   * attribute values.
-  */ 
+  */
 struct EnumFilter_t : public Filter_t {
 
 
-    EnumFilter_t(std::string attrName, const Int64Array_t &values,
+    EnumFilter_t(const std::string &attrName, const Int64Array_t &values,
                  bool excludeFlag = false);
-    EnumFilter_t(std::string attrName, const IntArray_t &values,
+    EnumFilter_t(const std::string &attrName, const IntArray_t &values,
                  bool excludeFlag = false);
     void dumpToBuff(Sphinx::Query_t &data) const;
     virtual std::ostream & print(std::ostream &o) const;
@@ -135,11 +134,11 @@ struct EnumFilter_t : public Filter_t {
   *
   * Range filter provides filtering search result based on floating point
   * attribute range.
-  */ 
+  */
 struct FloatRangeFilter_t : public Filter_t {
 
-    FloatRangeFilter_t(std::string attrName, float minValue, float maxValue,
-                 bool excludeFlag = false);
+    FloatRangeFilter_t(const std::string &attrName, float minValue,
+            float maxValue, bool excludeFlag = false);
     void dumpToBuff(Sphinx::Query_t &data) const;
     virtual std::ostream & print(std::ostream &o) const;
     virtual Filter_t * clone() const;

@@ -229,7 +229,7 @@ namespace Sphinx {
             attributeOverrides = from.attributeOverrides;
             /* handle filters*/
             for (std::vector<Filter_t *>::const_iterator i = from.filters.begin();
-                i != from.filters.end(); i++)
+                i != from.filters.end(); ++i)
             {
                 filters.push_back((*i)->clone());
             }
@@ -300,9 +300,9 @@ namespace Sphinx {
 
         //----- od verze query 113 -----
         //! @brief stop searching after cutoff matches (default 0 - disabled)
-        int32_t searchCutOff;
+        uint32_t searchCutOff;
         //! @brief distributed search retry count and delay
-        int32_t distRetryCount, distRetryDelay;
+        uint32_t distRetryCount, distRetryDelay;
         //! @brief count-distinct attribute (its name) for group-by query
         std::string groupDistinctAttribute;
 
@@ -312,7 +312,7 @@ namespace Sphinx {
         //! @brief per index weights (map of index name to index weight)
         std::map<std::string, uint32_t> indexWeights;
         //! @brief max query duration, milliseconds (default is 0, do not limit)
-        int32_t maxQueryTime;
+        uint32_t maxQueryTime;
         //! @brief per field weights (map of field name to field weight)
         std::map<std::string, uint32_t> fieldWeights;
         //! @brief query comment
@@ -526,7 +526,7 @@ void Sphinx::SearchConfig_t::setMaxMatches(int maxMatches) {
     dptr->maxMatches = maxMatches;
 }
 
-void Sphinx::SearchConfig_t::setMaxQueryTime(int32_t maxQueryTime) {
+void Sphinx::SearchConfig_t::setMaxQueryTime(uint32_t maxQueryTime) {
     dptr->maxQueryTime = maxQueryTime;
 }
 
@@ -544,12 +544,12 @@ void Sphinx::SearchConfig_t::setFieldWeight(
     dptr->fieldWeights[fieldName] = weight;
 }
 
-void Sphinx::SearchConfig_t::setSearchCutoff(int32_t searchCutOff) {
+void Sphinx::SearchConfig_t::setSearchCutoff(uint32_t searchCutOff) {
     dptr->searchCutOff = searchCutOff;
 }
 
 void Sphinx::SearchConfig_t::setRetries(
-        int32_t distRetryCount, int32_t distRetryDelay) {
+        uint32_t distRetryCount, uint32_t distRetryDelay) {
     dptr->distRetryCount = distRetryCount;
     dptr->distRetryDelay = distRetryDelay;
 }
@@ -628,13 +628,13 @@ Sphinx::SearchConfig_t::getFieldWeights() const {
     return dptr->fieldWeights;
 }
 
-int32_t Sphinx::SearchConfig_t::getSearchCutoff() const {
+uint32_t Sphinx::SearchConfig_t::getSearchCutoff() const {
     return dptr->searchCutOff;
 }
-int32_t Sphinx::SearchConfig_t::getDistRetryCount() const {
+uint32_t Sphinx::SearchConfig_t::getDistRetryCount() const {
     return dptr->distRetryCount;
 }
-int32_t Sphinx::SearchConfig_t::getDistRetryDelay() const {
+uint32_t Sphinx::SearchConfig_t::getDistRetryDelay() const {
     return dptr->distRetryDelay;
 }
 

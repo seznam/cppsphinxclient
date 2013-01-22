@@ -354,7 +354,7 @@ struct SearchConfig_t
     /** Get number of set filters. */
     unsigned getFilterCount() const;
 
-    /** Get filtter at specified position. For internal use only. */
+    /** Get filter at specified position. For internal use only. */
     const Filter_t *getFilter(int index) const;
 
     /// Get seatch command version
@@ -401,7 +401,7 @@ struct SearchConfig_t
     /// Set maximum matches to search for (internal queue size)
     void setMaxMatches(int maxMatches);
     /// Set max query duration, milliseconds (default is 0, do not limit)
-    void setMaxQueryTime(int32_t maxQueryTime);
+    void setMaxQueryTime(uint32_t maxQueryTime);
 
     /// Set index names to search in.
     void setSearchedIndexes(const std::string &indexNames);
@@ -419,13 +419,13 @@ struct SearchConfig_t
     void setFieldWeight(const std::string &fieldName, uint32_t weight);
 
     /// stop searching after cutoff matches (default 0 - disabled)
-    void setSearchCutoff(int32_t searchCutOff);
+    void setSearchCutoff(uint32_t searchCutOff);
     /**
      * Set distributed search retries
      * @param distRetryCount distributed search retry count
      * @param distRetryDelay distributed search retry delay
      */
-    void setRetries(int32_t distRetryCount, int32_t distRetryDelay);
+    void setRetries(uint32_t distRetryCount, uint32_t distRetryDelay);
 
     /// Set array of geo anchor points to calculate geodist.
     void setGeoAnchorPoints(const std::vector<GeoAnchorPoint_t> &anchorPoints);
@@ -480,11 +480,11 @@ struct SearchConfig_t
     const std::map<std::string, uint32_t> &getFieldWeights() const;
 
     /// Get maximum count of examined documents.
-    int32_t getSearchCutoff() const;
+    uint32_t getSearchCutoff() const;
     /// Get distributed search retry count.
-    int32_t getDistRetryCount() const;
+    uint32_t getDistRetryCount() const;
     /// Get distributed search retry delay.
-    int32_t getDistRetryDelay() const;
+    uint32_t getDistRetryDelay() const;
 
     /// Get array of geo anchor points.
     const std::vector<GeoAnchorPoint_t> &getGeoAnchorPoints() const;
