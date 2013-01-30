@@ -1,3 +1,9 @@
+libsphinxclient (2.1.1) unstable; urgency=low
+
+  * Fix errorneous copyconstructor of SearchConfig_t.
+
+ -- Jan Kirschner <jan.kirschner@firma.seznam.cz>  Wed, 30 Jan 2013 14:41:14 +0100
+
 libsphinxclient (2.1.0) unstable; urgency=low
 
   * Support string attributes and 64bit multi-attributes.

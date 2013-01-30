@@ -337,10 +337,8 @@ Sphinx::SearchConfig_t::SearchConfig_t(SearchCommandVersion_t cmdVer)
 
 
 Sphinx::SearchConfig_t::SearchConfig_t(const Sphinx::SearchConfig_t &from)
-{
-    delete dptr;
-    dptr = new Dptr_t(*(from.dptr));
-}
+    : dptr(new Dptr_t(*(from.dptr)))
+{}
 
 
 Sphinx::SearchConfig_t &Sphinx::SearchConfig_t::operator= (
