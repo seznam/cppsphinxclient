@@ -1224,6 +1224,22 @@ std::vector<Sphinx::KeywordResult_t> Sphinx::Client_t::getKeywords(
 
 //-----------------------------------------------------------------------------
 
+
+std::string Sphinx::escapeQueryString(const std::string &query)
+{
+    static const std::string escapeChars("\\()|-!@~\"&/^$=");
+    std::string result;
+    for (std::string::const_iterator cI = query.begin();
+            cI != query.end(); ++cI) {
+        if (escapeChars.find(*cI) != std::string::npos)
+            result += '\\';
+        result += *cI;
+    }
+
+    return result;
+}
+
+
 void sphinxClientDummy()
 { }
 

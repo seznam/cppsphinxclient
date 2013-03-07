@@ -902,6 +902,14 @@ protected:
     ConnectionConfig_t connection;
 };//class
 
+
+/**
+ * Replace characters with special meaning with their escaped forms.
+ * @param query Searched query string.
+ * @return escaped form of the string.
+ */
+std::string escapeQueryString(const std::string &query);
+
 }//namespace
 
 extern "C" {
