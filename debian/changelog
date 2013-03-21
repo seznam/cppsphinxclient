@@ -1,3 +1,12 @@
+libsphinxclient (2.1.3) unstable; urgency=low
+
+  * Fixed broken MVA64 attributes fetching.
+  * Added missing string value type name.
+  * Debian packaging - allow applications to depend on a specific
+    libsphinxclient package version.
+
+ -- Jan Kirschner <jan.kirschner@firma.seznam.cz>  Thu, 21 Mar 2013 14:34:36 +0100
+
 libsphinxclient (2.1.2) unstable; urgency=low
 
   * Added a function to escape query string to be safe for extended query

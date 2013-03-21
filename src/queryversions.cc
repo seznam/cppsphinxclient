@@ -268,7 +268,6 @@ std::vector<Sphinx::Value_t> parseMultiAttribute(Sphinx::Query_t &data, int valu
     return vec;
 }//konec fce
 
-
 void parseResponse_v0_9_8(Sphinx::Query_t &data, Sphinx::Response_t &response)
 {
     uint32_t matchCount;
@@ -372,6 +371,8 @@ void parseResponse_v0_9_8(Sphinx::Query_t &data, Sphinx::Response_t &response)
                 // 64 bit multi-value attribute
                 uint32_t valueCount;
                 data >> valueCount;
+                // the count is 32 bit word count instead of value count
+                valueCount >>= 1;
                 //parse multi-attributes
                 entry.attribute.insert(std::make_pair(attr->first,
                         parseMultiAttribute<uint64_t>(data, valueCount)));

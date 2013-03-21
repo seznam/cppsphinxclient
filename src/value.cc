@@ -48,7 +48,8 @@ static const char *valueTypeString[] = {
     "uint32_t",
     "float",
     "std::vector<Value_t>",
-    "uint64_t"
+    "uint64_t",
+    "std::string"
 };
 
 /** @brief Class, representing value data. Can't be constructed as is;
