@@ -39,6 +39,7 @@
 
 #include <sphinxclient/sphinxclient.h>
 #include <stdio.h>
+#include <unistd.h>
 
 //------------------------------------------------------------------------------
 
