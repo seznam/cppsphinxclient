@@ -41,6 +41,7 @@
 
 #include <sstream>
 #include <netdb.h>
+#include <unistd.h>
 
 //--------------------------------------------------------------------------------
 // 64bit network byte order workaround
