@@ -36,7 +36,7 @@
 
 
 # initialize autoconf
-AC_INIT(sphinxclient, 2.1.0, jan.kirschner@firma.seznam.cz)
+AC_INIT(sphinxclient, m4_esyscmd([head -n1 debian/changelog | tr -d '()' | cut -d' ' -f2 | tr -d '\n']))
 # initialize automake(use AC_INIT's arguments)
 AM_INIT_AUTOMAKE(-Wall foreign)
 
@@ -51,6 +51,8 @@ AC_PROG_CXX
 
 # check for std C headers
 AC_HEADER_STDC
+
+PKG_PROG_PKG_CONFIG
 
 # check for libtool
 AC_PROG_LIBTOOL
@@ -68,7 +70,12 @@ AC_CHECK_HEADER(sys/socket.h, , AC_MSG_ERROR([socket.h header missing], 1))
 AC_CHECK_HEADER(stdlib.h, , AC_MSG_ERROR([Standart C header missing], 1))
 AC_CHECK_HEADER(unistd.h, , AC_MSG_ERROR([Standart unix header missing], 1))
 
-AC_CHECK_LIB(rt, clock_gettime)
-
 # generate Makefile
-AC_OUTPUT(version Makefile src/Makefile include/Makefile include/sphinxclient/Makefile)
+AC_OUTPUT([
+           version 
+           Makefile 
+           src/Makefile 
+           include/Makefile 
+           include/sphinxclient/Makefile
+           sphinxclient.pc
+])

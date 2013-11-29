@@ -1,7 +1,7 @@
 Source: libsphinxclient
 Priority: extra
 Maintainer: Jan Kirschner <jan.kirschner@firma.seznam.cz>
-Build-Depends: debhelper (>= 7), autotools-dev
+Build-Depends: debhelper (>= 7), autotools-dev, pkg-config
 Standards-Version: 3.7.3
 Section: libs
 Homepage: http://cppsphinxclient.sourceforge.net

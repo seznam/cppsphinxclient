@@ -20,9 +20,6 @@
 # Radlicka 2, Praha 5, 15000, Czech Republic
 # http://www.seznam.cz, mailto:sphinxclient@firma.seznam.cz
 #
-#
-# $Id$
-#
 # DESCRIPTION
 # A makefile template for sphinxclient.
 #
@@ -48,10 +45,19 @@ lib_LTLIBRARIES = libsphinxclient.la
 libsphinxclient_la_SOURCES = sphinxclient.cc sphinxclientquery.cc value.cc \
         filter.cc queryversions.cc querymachine.cc
 
-libsphinxclient_la_LIBADD = -L.
+libsphinxclient_la_LIBADD = -L. -lrt
 libsphinxclient_la_DEPENDENCIES = 
 
 # with these flags (version info etc.)
 libsphinxclient_la_LDFLAGS = @VERSION_INFO@
 
 
+# test linking
+noinst_PROGRAMS = test-link
+test_link_SOURCES = test-link.cc
+test_link_LDADD = libsphinxclient.la
+
+test-link.cc:
+	echo 'int main() { return 0; }' > $@ 
+
+CLEANFILES = test-link.cc

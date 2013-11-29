@@ -32,6 +32,9 @@ version=`ls src/.libs/lib*.so.* | \
 major=`ls src/.libs/lib*.so.* | \
  awk '{if (match($$0,/\.so\.[0-9]+$$/)) print substr($$0,RSTART+4)}'`
 
+configure:
+	autoreconf -fi
+
 config.status: configure
 	dh_testdir
 	# Add here commands to configure the package.

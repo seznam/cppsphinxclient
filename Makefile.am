@@ -63,3 +63,5 @@ sphinxtest4_LDADD = src/libsphinxclient.la
 sphinxtest_mva64_SOURCES = sphinxtest-mva64.cc
 sphinxtest_mva64_LDADD = src/libsphinxclient.la
 
+pkgconfigdir=@libdir@/pkgconfig
+pkgconfig_DATA=sphinxclient.pc
