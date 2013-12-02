@@ -20,9 +20,6 @@
 # Radlicka 2, Praha 5, 15000, Czech Republic
 # http://www.seznam.cz, mailto:sphinxclient@firma.seznam.cz
 #
-#
-# $Id$
-#
 # DESCRIPTION
 # A makefile template for sphinxclient.
 #
