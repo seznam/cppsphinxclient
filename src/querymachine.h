@@ -237,6 +237,11 @@ private:
         const Sphinx::ConnectionConfig_t &cconfig,
         struct addrinfo *&ai, struct addrinfo *&aip);
 
+    /// Connect using unix domain socket. Expected to call this just
+    /// if ConnectionConfig_t::isDomainSocketUsed() == true.
+    static int setupLocalConnection(
+        const Sphinx::ConnectionConfig_t &cconfig);
+
     /* @brief Internal state of query state machine
      */
     enum QueryState_t {

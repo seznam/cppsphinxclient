@@ -196,6 +196,16 @@ int32_t Sphinx::ConnectionConfig_t::getConnectRetryWait() const
     return d->connectRetryWait;
 }
 
+bool Sphinx::ConnectionConfig_t::isDomainSocketUsed() const {
+    // check if first 6 bytes equals to "unix:/"
+    return d->host.compare(0, 6, "unix:/") == 0;
+}
+
+const char *Sphinx::ConnectionConfig_t::getDomainSocketPath() const {
+    // skip "unix:/" part from host and return the rest of host string.
+    return d->host.c_str() + 6;
+}
+
 //------------------------------------------------------------------------------
 
 

@@ -45,6 +45,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <linux/un.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <ctype.h>
@@ -217,10 +218,58 @@ void Sphinx::QueryMachine_t::launch()
 }
 
 
+int Sphinx::QueryMachine_t::setupLocalConnection(
+        const Sphinx::ConnectionConfig_t &cconfig) {
+    // create unix domain socket
+    int socket_d = ::socket(AF_UNIX, SOCK_STREAM, 0);
+    if (socket_d == -1) {
+        throw Sphinx::ConnectionError_t(
+                std::string("Unable to create socket (") +
+                std::string(strerror(errno)) + std::string(")"));
+    }
+
+    // set socket non-blocking
+    if (::fcntl(socket_d, F_SETFL, O_NONBLOCK) < 0) {
+        throw Sphinx::ConnectionError_t(
+                std::string("Cannot set socket non-blocking: ") +
+                std::string(strerror(errno)));
+    }
+
+    // check if buffer size is sufficient
+    if (strlen(cconfig.getDomainSocketPath()) >= UNIX_PATH_MAX) {
+        throw Sphinx::ConnectionError_t(
+                std::string("Domain socket path length exceeded."));
+    }
+
+    struct sockaddr_un remote;
+    remote.sun_family = AF_UNIX;
+    strcpy(remote.sun_path, cconfig.getDomainSocketPath());
+    int len = strlen(remote.sun_path) + sizeof(remote.sun_family);
+    // connect to socket
+    if (::connect(socket_d, (struct sockaddr *)&remote, len) < 0) {
+        switch (errno) {
+            case EINPROGRESS:    // connect in progress
+            case EALREADY:       // connect already called
+            case EWOULDBLOCK:    // no errors
+                break;
+            default:
+                throw Sphinx::ConnectionError_t(
+                        strError("Can't connect socket"));
+        }
+    }
+
+    return socket_d;
+}
+
+
 int Sphinx::QueryMachine_t::setupConnection(
     const Sphinx::ConnectionConfig_t &cconfig,
     struct addrinfo *&ai, struct addrinfo *&aip)
 {
+    if (cconfig.isDomainSocketUsed()) {
+        return setupLocalConnection(cconfig);
+    }
+
     int socket_d = -1;
     if (!ai) {
         // address info not found
