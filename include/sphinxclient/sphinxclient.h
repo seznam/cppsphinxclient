@@ -218,6 +218,19 @@ public:
     int32_t getWriteTimeout() const;
     int32_t getConnectRetriesCount() const;
     int32_t getConnectRetryWait() const;
+
+    /**
+     * Check if unix domain socket have to be used.
+     * Searches "unix://..." in configured hostname.
+     * @return True if unix domain socket have to be used.
+     */
+    bool isDomainSocketUsed() const;
+
+    /**
+     * Return null terminated string containing unix domain socket path.
+     * Undefined behavior if called for isDomainSocketUsed() == false.
+     */
+    const char *getDomainSocketPath() const;
 };
 
 
